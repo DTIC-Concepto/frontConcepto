@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { Building, GraduationCap, Users } from "lucide-react";
+import { Building, GraduationCap, Users, User } from "lucide-react";
 import { DashboardService, DashboardStats } from "@/lib/dashboard";
 import { AuthService } from "@/lib/auth";
 import { ActivityRecord } from "@/lib/api";
 
 export default function Dashboard() {
+  const router = useRouter();
   const [stats, setStats] = useState<DashboardStats>({
     totalFacultades: 0,
     totalCarreras: 0,
@@ -77,10 +79,14 @@ export default function Dashboard() {
   ];
 
   const quickActions = [
-    { label: "Gestionar Carreras", icon: GraduationCap },
-    { label: "Gestionar Usuarios", icon: Users },
-    { label: "Ver Mi Perfil", icon: Users },
+    { label: "Gestionar Carreras", icon: GraduationCap, route: "/carreras" },
+    { label: "Gestionar Usuarios", icon: Users, route: "/usuarios" },
+    { label: "Ver Mi Perfil", icon: User, route: "/perfil" },
   ];
+
+  const handleQuickAction = (route: string) => {
+    router.push(route);
+  };
 
   return (
     <ProtectedRoute>
@@ -128,7 +134,8 @@ export default function Dashboard() {
               return (
                 <button
                   key={index}
-                  className="flex flex-col items-center justify-center gap-4 p-6 bg-white hover:bg-gray-50 rounded transition-colors"
+                  onClick={() => handleQuickAction(action.route)}
+                  className="flex flex-col items-center justify-center gap-4 p-6 bg-white hover:bg-gray-50 rounded transition-colors border border-transparent hover:border-[#003366]/20 hover:shadow-sm"
                 >
                   <Icon className="w-8 h-8 text-[#003366]" />
                   <span className="text-[#171A1F] text-sm text-center">

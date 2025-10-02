@@ -4,11 +4,12 @@ import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import NewCareerModal from "@/components/NewCareerModal";
-import { Search, ChevronLeft, ChevronRight, Plus, SquarePen, Trash2 } from "lucide-react";
-import { Career, CareerFilters, Faculty, MODALIDADES, MODALIDAD_DISPLAY_NAMES, ModalidadType } from "@/lib/api";
+import { Search, ChevronLeft, Plus, SquarePen, Trash2 } from "lucide-react";
+import { Career, CareerFilters, Faculty } from "@/lib/api";
 import { CareersService } from "@/lib/careers";
 import { FacultiesService } from "@/lib/faculties";
 import NotificationService from "@/lib/notifications";
+import Pagination from "@/components/Pagination";
 
 export default function Carreras() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -20,47 +21,36 @@ export default function Carreras() {
   const [isLoading, setIsLoading] = useState(true);
   
   // Filtros
-  const [facultyFilter, setFacultyFilter] = useState<string>("");
-  const [modalityFilter, setModalityFilter] = useState<ModalidadType | "">("");
-  const [statusFilter, setStatusFilter] = useState<boolean | undefined>(undefined);
+  const [facultyFilter, setFacultyFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // Configuración de paginación
-  const itemsPerPage = 10;
+  const itemsPerPage = 5;
   const totalPages = Math.ceil(filteredCareers.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentCareers = filteredCareers.slice(startIndex, endIndex);
 
-  // Cargar carreras desde el backend
-  const loadCareers = async () => {
+  // Cargar datos iniciales
+  const loadData = async () => {
     try {
       setIsLoading(true);
-      const filters: CareerFilters = {};
       
-      if (searchTerm) {
-        filters.search = searchTerm;
-      }
+      // Cargar carreras
+      const careersData = await CareersService.getAllCareers();
+      setCareers(careersData);
       
-      if (facultyFilter) {
-        filters.facultadId = facultyFilter;
-      }
+      // Cargar facultades para filtros
+      const facultiesData = await FacultiesService.getAllFaculties();
+      setFaculties(facultiesData);
       
-      if (modalityFilter) {
-        filters.modalidad = modalityFilter;
-      }
-      
-      if (statusFilter !== undefined) {
-        filters.estadoActivo = statusFilter;
-      }
-
-      const data = await CareersService.getAllCareers(filters);
-      setCareers(data);
-      setFilteredCareers(data);
+      // Aplicar filtros iniciales
+      applyFilters(careersData);
     } catch (error) {
-      console.error('Error al cargar carreras:', error);
+      console.error('Error al cargar datos:', error);
       NotificationService.error(
-        'Error al cargar carreras',
-        'No se pudieron cargar las carreras. Verifique su conexión.'
+        'Error al cargar datos',
+        'No se pudieron cargar los datos. Verifique su conexión.'
       );
       setCareers([]);
       setFilteredCareers([]);
@@ -69,43 +59,48 @@ export default function Carreras() {
     }
   };
 
-  // Cargar facultades para filtros
-  const loadFaculties = async () => {
-    try {
-      const facultiesData = await FacultiesService.getAllFaculties({ estadoActivo: true });
-      setFaculties(facultiesData);
-    } catch (error) {
-      console.error('Error al cargar facultades:', error);
+  // Aplicar filtros locales
+  const applyFilters = (careersToFilter = careers) => {
+    let filtered = [...careersToFilter];
+    
+    // Filtro por búsqueda
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(career => 
+        career.codigo.toLowerCase().includes(term) ||
+        career.nombre.toLowerCase().includes(term) ||
+        (career.facultadNombre && career.facultadNombre.toLowerCase().includes(term)) ||
+        (career.coordinadorNombre && career.coordinadorNombre.toLowerCase().includes(term))
+      );
     }
-  };
-
-  // Filtros locales en tiempo real
-  const applyLocalFilters = () => {
-    const filters: CareerFilters = {
-      search: searchTerm || undefined,
-      facultadId: facultyFilter || undefined,
-      modalidad: modalityFilter || undefined,
-      estadoActivo: statusFilter
-    };
-
-    const filtered = CareersService.filterCareers(careers, filters);
+    
+    // Filtro por facultad
+    if (facultyFilter !== "all") {
+      filtered = filtered.filter(career => career.facultadId?.toString() === facultyFilter);
+    }
+    
+    // Filtro por estado
+    if (statusFilter !== "all") {
+      const isActive = statusFilter === "active";
+      filtered = filtered.filter(career => career.estadoActivo === isActive);
+    }
+    
     setFilteredCareers(filtered);
     setCurrentPage(1); // Reset a la primera página cuando se filtra
   };
 
   // Cargar datos iniciales
   useEffect(() => {
-    loadCareers();
-    loadFaculties();
+    loadData();
   }, []);
 
-  // Aplicar filtros locales cuando cambien
+  // Aplicar filtros cuando cambien
   useEffect(() => {
-    applyLocalFilters();
-  }, [searchTerm, facultyFilter, modalityFilter, statusFilter, careers]);
+    applyFilters();
+  }, [searchTerm, facultyFilter, statusFilter, careers]);
 
   const handleModalSuccess = () => {
-    loadCareers(); // Recargar la lista después de crear una carrera
+    loadData(); // Recargar la lista después de crear una carrera
   };
 
   const handleEdit = (career: Career) => {
@@ -129,7 +124,8 @@ export default function Carreras() {
         </div>
 
         {/* Search and Filters */}
-        <div className="bg-white rounded border border-border p-4 mb-6 flex flex-col md:flex-row items-stretch md:items-center gap-4">
+        <div className="bg-white rounded border border-border p-4 mb-6 flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
+          {/* Búsqueda */}
           <div className="flex-1 flex items-center gap-1.5 px-3 py-2 border border-border rounded bg-white">
             <Search className="w-4 h-4 text-[#565D6D] flex-shrink-0" />
             <input
@@ -141,64 +137,48 @@ export default function Carreras() {
             />
           </div>
           
-          {/* Filtro por Facultad */}
-          <div className="relative">
-            <select
-              value={facultyFilter}
-              onChange={(e) => setFacultyFilter(e.target.value)}
-              className="flex items-center gap-1.5 px-3 py-2 border border-border rounded bg-white md:min-w-[180px] text-sm text-[#171A1F] appearance-none cursor-pointer"
+          {/* Filtros y botón */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+            {/* Filtro por Facultades */}
+            <div className="relative">
+              <select
+                value={facultyFilter}
+                onChange={(e) => setFacultyFilter(e.target.value)}
+                className="flex items-center gap-1.5 px-3 py-2 border border-border rounded bg-white min-w-[200px] text-sm text-[#171A1F] appearance-none cursor-pointer pr-10"
+              >
+                <option value="all">Todas las Facultades</option>
+                {faculties.map((faculty) => (
+                  <option key={faculty.id} value={faculty.id?.toString()}>
+                    {faculty.nombre}
+                  </option>
+                ))}
+              </select>
+              <ChevronLeft className="w-4 h-4 text-[#171A1F] rotate-[-90deg] absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+            </div>
+            
+            {/* Filtro por Estado */}
+            <div className="relative">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="flex items-center gap-1.5 px-3 py-2 border border-border rounded bg-white min-w-[170px] text-sm text-[#171A1F] appearance-none cursor-pointer pr-10"
+              >
+                <option value="all">Todos los Estados</option>
+                <option value="active">Activas</option>
+                <option value="inactive">Inactivas</option>
+              </select>
+              <ChevronLeft className="w-4 h-4 text-[#171A1F] rotate-[-90deg] absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+            </div>
+            
+            {/* Botón Nueva Carrera */}
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="bg-[#003366] text-white px-4 py-2.5 rounded flex items-center justify-center gap-2 text-sm font-medium hover:bg-[#003366]/90 transition-colors whitespace-nowrap"
             >
-              <option value="">Todas las facultades</option>
-              {faculties.map((faculty) => (
-                <option key={faculty.id} value={faculty.id}>
-                  {faculty.codigo}
-                </option>
-              ))}
-            </select>
-            <ChevronLeft className="w-4 h-4 text-[#171A1F] rotate-[-90deg] absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+              <Plus className="w-4 h-4" />
+              Nueva Carrera
+            </button>
           </div>
-          
-          {/* Filtro por Modalidad */}
-          <div className="relative">
-            <select
-              value={modalityFilter}
-              onChange={(e) => setModalityFilter(e.target.value as ModalidadType | "")}
-              className="flex items-center gap-1.5 px-3 py-2 border border-border rounded bg-white md:min-w-[150px] text-sm text-[#171A1F] appearance-none cursor-pointer"
-            >
-              <option value="">Todas las modalidades</option>
-              {MODALIDADES.map((modalidad) => (
-                <option key={modalidad} value={modalidad}>
-                  {MODALIDAD_DISPLAY_NAMES[modalidad]}
-                </option>
-              ))}
-            </select>
-            <ChevronLeft className="w-4 h-4 text-[#171A1F] rotate-[-90deg] absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
-          </div>
-          
-          {/* Filtro por Estado */}
-          <div className="relative">
-            <select
-              value={statusFilter === undefined ? 'all' : statusFilter.toString()}
-              onChange={(e) => {
-                const value = e.target.value;
-                setStatusFilter(value === 'all' ? undefined : value === 'true');
-              }}
-              className="flex items-center gap-1.5 px-3 py-2 border border-border rounded bg-white md:min-w-[120px] text-sm text-[#171A1F] appearance-none cursor-pointer"
-            >
-              <option value="all">Todos los estados</option>
-              <option value="true">Activas</option>
-              <option value="false">Inactivas</option>
-            </select>
-            <ChevronLeft className="w-4 h-4 text-[#171A1F] rotate-[-90deg] absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
-          </div>
-          
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="bg-[#003366] text-white px-4 py-2.5 rounded flex items-center justify-center gap-2 text-sm font-medium hover:bg-[#003366]/90 transition-colors whitespace-nowrap"
-          >
-            <Plus className="w-4 h-4" />
-            Nueva Carrera
-          </button>
         </div>
 
         {/* Loading State */}
@@ -236,22 +216,22 @@ export default function Carreras() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-[#F3F4F6]">
-                    <th className="text-left px-4 py-3.5 text-sm font-normal text-[#565D6D] w-32">Código</th>
-                    <th className="text-left px-4 py-3.5 text-sm font-normal text-[#565D6D] w-80">Nombre</th>
-                    <th className="text-left px-4 py-3.5 text-sm font-normal text-[#565D6D] w-40">Facultad</th>
-                    <th className="text-left px-4 py-3.5 text-sm font-normal text-[#565D6D] w-60">Coordinador</th>
-                    <th className="text-center px-4 py-3.5 text-sm font-normal text-[#565D6D] w-32">Acciones</th>
+                    <th className="text-left px-4 py-5 text-sm font-normal text-[#565D6D] w-32">Código</th>
+                    <th className="text-left px-4 py-5 text-sm font-normal text-[#565D6D] w-80">Nombre</th>
+                    <th className="text-left px-4 py-5 text-sm font-normal text-[#565D6D] w-40">Facultad</th>
+                    <th className="text-left px-4 py-5 text-sm font-normal text-[#565D6D] w-60">Coordinador</th>
+                    <th className="text-center px-4 py-5 text-sm font-normal text-[#565D6D] w-32">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {currentCareers.map((career) => (
                     <tr key={career.id} className="border-t border-border">
-                      <td className="px-4 py-4 text-sm text-[#171A1F] font-medium w-32">{career.codigo}</td>
-                      <td className="px-4 py-4 text-sm text-[#171A1F] w-80">{career.nombre}</td>
-                      <td className="px-4 py-4 text-sm text-[#171A1F] w-40">
+                      <td className="px-4 py-5 text-sm text-[#171A1F] font-medium w-32">{career.codigo}</td>
+                      <td className="px-4 py-5 text-sm text-[#171A1F] w-80">{career.nombre}</td>
+                      <td className="px-4 py-5 text-sm text-[#171A1F] w-40">
                         {career.facultadNombre || 'Sin facultad'}
                       </td>
-                      <td className="px-4 py-4 text-sm w-60">
+                      <td className="px-4 py-5 text-sm w-60">
                         <span className={`${
                           career.coordinadorNombre === 'Sin asignar' 
                             ? 'text-[#565D6D] italic' 
@@ -260,7 +240,7 @@ export default function Carreras() {
                           {career.coordinadorNombre || 'Sin asignar'}
                         </span>
                       </td>
-                      <td className="px-4 py-4 w-32">
+                      <td className="px-4 py-5 w-32">
                         <div className="flex items-center justify-center gap-2">
                           <button 
                             onClick={() => handleEdit(career)}
@@ -342,54 +322,12 @@ export default function Carreras() {
 
         {/* Pagination */}
         {!isLoading && filteredCareers.length > itemsPerPage && (
-          <div className="flex items-center justify-center gap-4 md:gap-6 mt-6 flex-wrap">
-            <button 
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="flex items-center gap-2 text-sm text-[#171A1F] hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Anterior</span>
-            </button>
-            
-            <div className="flex items-center gap-3 md:gap-4">
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-                
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`text-sm transition-colors px-3 py-1 rounded ${
-                      currentPage === pageNum
-                        ? 'bg-[#003366] text-white'
-                        : 'text-[#171A1F] hover:text-primary'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-            </div>
-            
-            <button 
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages}
-              className="flex items-center gap-2 text-sm text-[#171A1F] hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span className="hidden sm:inline">Siguiente</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            className="mt-6"
+          />
         )}
 
         {/* Results counter */}

@@ -3,24 +3,31 @@
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import NewUserModal from "@/components/NewUserModal";
-import { Search, ChevronLeft, ChevronRight, Edit, Trash2 } from "lucide-react";
+import { Search, ChevronLeft, Edit, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { User, UserFilters, VALID_ROLES, ROLE_DISPLAY_NAMES, RoleType } from "@/lib/api";
 import { UsersService } from "@/lib/users";
 import NotificationService from "@/lib/notifications";
+import Pagination from "@/components/Pagination";
 
 export default function Usuarios() {
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   
-  // Estados de filtros
-  const [filters, setFilters] = useState<UserFilters>({
-    search: '',
-    rol: undefined,
-    estadoActivo: undefined,
-  });
+  // Estados de filtros simplificados
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  // Configuración de paginación
+  const itemsPerPage = 5;
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentUsers = filteredUsers.slice(startIndex, endIndex);
 
   // Cargar usuarios desde el backend
   const loadUsers = async () => {
@@ -28,7 +35,7 @@ export default function Usuarios() {
       setIsLoading(true);
       const userData = await UsersService.getUsers();
       setUsers(userData);
-      setFilteredUsers(userData);
+      applyFilters(userData);
     } catch (error) {
       console.error('Error cargando usuarios:', error);
       NotificationService.error(
@@ -40,32 +47,34 @@ export default function Usuarios() {
     }
   };
 
-  // Aplicar filtros localmente (para mejor UX)
-  const applyFilters = () => {
-    let filtered = [...users];
+  // Aplicar filtros localmente
+  const applyFilters = (usersToFilter = users) => {
+    let filtered = [...usersToFilter];
 
     // Filtro de búsqueda
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(user => 
         user.nombres.toLowerCase().includes(searchLower) ||
         user.apellidos.toLowerCase().includes(searchLower) ||
         user.correo.toLowerCase().includes(searchLower) ||
-        user.cedula.includes(filters.search!)
+        user.cedula.includes(searchTerm)
       );
     }
 
     // Filtro de rol
-    if (filters.rol) {
-      filtered = filtered.filter(user => user.rol === filters.rol);
+    if (roleFilter !== "all") {
+      filtered = filtered.filter(user => user.rol === roleFilter);
     }
 
     // Filtro de estado
-    if (filters.estadoActivo !== undefined) {
-      filtered = filtered.filter(user => user.estadoActivo === filters.estadoActivo);
+    if (statusFilter !== "all") {
+      const isActive = statusFilter === "active";
+      filtered = filtered.filter(user => user.estadoActivo === isActive);
     }
 
     setFilteredUsers(filtered);
+    setCurrentPage(1); // Reset a la primera página cuando se filtra
   };
 
   // Cargar usuarios al montar el componente
@@ -76,14 +85,7 @@ export default function Usuarios() {
   // Aplicar filtros cuando cambien
   useEffect(() => {
     applyFilters();
-  }, [filters, users]);
-
-  const handleFilterChange = (key: keyof UserFilters, value: any) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value === '' ? undefined : value,
-    }));
-  };
+  }, [searchTerm, roleFilter, statusFilter, users]);
 
   const handleUserCreated = () => {
     loadUsers(); // Recargar la lista después de crear un usuario
@@ -93,57 +95,66 @@ export default function Usuarios() {
     <ProtectedRoute>
       <Layout>
         <div className="p-4 md:p-6 lg:p-8 space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <h1 className="text-[#171A1F] font-montserrat text-2xl md:text-4xl font-bold">
+          <div className="mb-6 md:mb-9">
+            <h1 className="text-3xl md:text-4xl font-bold font-montserrat text-[#171A1F]">
               Gestión de Usuarios
             </h1>
-            <button 
-              onClick={() => setIsModalOpen(true)}
-              className="px-4 py-2 bg-[#003366] text-white font-open-sans text-sm rounded-md hover:bg-[#003366]/90 transition-colors whitespace-nowrap shadow-sm"
-            >
-              + Nuevo Usuario
-            </button>
           </div>
 
-          {/* Filtros */}
-          <div className="bg-white rounded-md border border-[#DEE1E6] p-4 shadow-sm">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Búsqueda */}
+          {/* Search and Filters */}
+          <div className="bg-white rounded border border-border p-4 mb-6 flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
+            {/* Búsqueda */}
+            <div className="flex-1 flex items-center gap-1.5 px-3 py-2 border border-border rounded bg-white">
+              <Search className="w-4 h-4 text-[#565D6D] flex-shrink-0" />
+              <input
+                type="text"
+                placeholder="Buscar por nombre, cédula o correo..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="flex-1 text-sm outline-none text-[#171A1F] placeholder:text-[#565D6D] min-w-0"
+              />
+            </div>
+            
+            {/* Filtros y botón */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+              {/* Filtro por Roles */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#565D6D]" />
-                <input
-                  type="text"
-                  placeholder="Buscar usuario..."
-                  value={filters.search || ''}
-                  onChange={(e) => handleFilterChange('search', e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 rounded-md border border-[#DEE1E6] bg-white text-sm text-[#171A1F] placeholder:text-[#565D6D] focus:outline-none focus:ring-2 focus:ring-[#003366]/20 focus:border-[#003366] shadow-sm"
-                />
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="flex items-center gap-1.5 px-3 py-2 border border-border rounded bg-white min-w-[170px] text-sm text-[#171A1F] appearance-none cursor-pointer pr-10"
+                >
+                  <option value="all">Todos los Roles</option>
+                  {VALID_ROLES.map((role) => (
+                    <option key={role} value={role}>
+                      {ROLE_DISPLAY_NAMES[role]}
+                    </option>
+                  ))}
+                </select>
+                <ChevronLeft className="w-4 h-4 text-[#171A1F] rotate-[-90deg] absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
               </div>
-
-              {/* Filtro de Rol */}
-              <select 
-                value={filters.rol || ''}
-                onChange={(e) => handleFilterChange('rol', e.target.value)}
-                className="px-3 py-2 rounded-md border border-[#DEE1E6] bg-white text-[#171A1F] text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]/20 focus:border-[#003366] shadow-sm"
+              
+              {/* Filtro por Estado */}
+              <div className="relative">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="flex items-center gap-1.5 px-3 py-2 border border-border rounded bg-white min-w-[170px] text-sm text-[#171A1F] appearance-none cursor-pointer pr-10"
+                >
+                  <option value="all">Todos los Estados</option>
+                  <option value="active">Activos</option>
+                  <option value="inactive">Inactivos</option>
+                </select>
+                <ChevronLeft className="w-4 h-4 text-[#171A1F] rotate-[-90deg] absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+              </div>
+              
+              {/* Botón Nuevo Usuario */}
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                className="bg-[#003366] text-white px-4 py-2.5 rounded flex items-center justify-center gap-2 text-sm font-medium hover:bg-[#003366]/90 transition-colors whitespace-nowrap"
               >
-                <option value="">Todos los Roles</option>
-                {VALID_ROLES.map(role => (
-                  <option key={role} value={role}>
-                    {ROLE_DISPLAY_NAMES[role]}
-                  </option>
-                ))}
-              </select>
-
-              {/* Filtro de Estado */}
-              <select 
-                value={filters.estadoActivo === undefined ? '' : filters.estadoActivo.toString()}
-                onChange={(e) => handleFilterChange('estadoActivo', e.target.value === '' ? undefined : e.target.value === 'true')}
-                className="px-3 py-2 rounded-md border border-[#DEE1E6] bg-white text-[#171A1F] text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]/20 focus:border-[#003366] shadow-sm"
-              >
-                <option value="">Todos los Estados</option>
-                <option value="true">Activo</option>
-                <option value="false">Inactivo</option>
-              </select>
+                + Nuevo Usuario
+              </button>
             </div>
           </div>
 
@@ -189,45 +200,45 @@ export default function Usuarios() {
                 <table className="w-full">
                   <thead>
                     <tr className="bg-[#F3F4F6]/50">
-                      <th className="text-left px-4 py-3.5 text-[#565D6D] font-open-sans text-sm font-normal">
+                      <th className="text-left px-4 py-5 text-[#565D6D] font-open-sans text-sm font-normal">
                         Cédula
                       </th>
-                      <th className="text-left px-4 py-3.5 text-[#565D6D] font-open-sans text-sm font-normal">
+                      <th className="text-left px-4 py-5 text-[#565D6D] font-open-sans text-sm font-normal">
                         Nombre Completo
                       </th>
-                      <th className="text-left px-4 py-3.5 text-[#565D6D] font-open-sans text-sm font-normal">
+                      <th className="text-left px-4 py-5 text-[#565D6D] font-open-sans text-sm font-normal">
                         Email
                       </th>
-                      <th className="text-left px-4 py-3.5 text-[#565D6D] font-open-sans text-sm font-normal">
+                      <th className="text-left px-4 py-5 text-[#565D6D] font-open-sans text-sm font-normal">
                         Rol
                       </th>
-                      <th className="text-left px-4 py-3.5 text-[#565D6D] font-open-sans text-sm font-normal">
+                      <th className="text-left px-4 py-5 text-[#565D6D] font-open-sans text-sm font-normal">
                         Estado
                       </th>
-                      <th className="text-left px-4 py-3.5 text-[#565D6D] font-open-sans text-sm font-normal">
+                      <th className="text-left px-4 py-5 text-[#565D6D] font-open-sans text-sm font-normal">
                         Acciones
                       </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredUsers.map((user, index) => (
+                    {currentUsers.map((user, index) => (
                       <tr
                         key={user.id || index}
                         className="border-t border-[#DEE1E6] hover:bg-gray-50"
                       >
-                        <td className="px-4 py-4 text-[#171A1F] font-open-sans text-sm">
+                        <td className="px-4 py-5 text-[#171A1F] font-open-sans text-sm">
                           {user.cedula}
                         </td>
-                        <td className="px-4 py-4 text-[#171A1F] font-open-sans text-sm">
+                        <td className="px-4 py-5 text-[#171A1F] font-open-sans text-sm">
                           {`${user.nombres} ${user.apellidos}`}
                         </td>
-                        <td className="px-4 py-4 text-[#171A1F] font-open-sans text-sm">
+                        <td className="px-4 py-5 text-[#171A1F] font-open-sans text-sm">
                           {user.correo}
                         </td>
-                        <td className="px-4 py-4 text-[#171A1F] font-open-sans text-sm">
+                        <td className="px-4 py-5 text-[#171A1F] font-open-sans text-sm">
                           {ROLE_DISPLAY_NAMES[user.rol]}
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-5">
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                               user.estadoActivo
@@ -238,7 +249,7 @@ export default function Usuarios() {
                             {user.estadoActivo ? 'Activo' : 'Inactivo'}
                           </span>
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-5">
                           <div className="flex items-center gap-2">
                             <button 
                               className="p-1.5 text-[#003366] hover:bg-gray-100 rounded transition-colors"
@@ -261,18 +272,25 @@ export default function Usuarios() {
               </div>
             )}
 
-            {/* Información de resultados */}
-            {!isLoading && filteredUsers.length > 0 && (
-              <div className="border-t border-[#DEE1E6] px-4 py-3">
-                <div className="flex items-center justify-between text-sm text-[#565D6D] font-open-sans">
-                  <span>
-                    Mostrando {filteredUsers.length} de {users.length} usuarios
-                  </span>
-                  {/* Aquí se puede agregar paginación en el futuro */}
-                </div>
-              </div>
-            )}
           </div>
+
+          {/* Pagination */}
+          {!isLoading && filteredUsers.length > itemsPerPage && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              className="mt-6"
+            />
+          )}
+
+          {/* Results counter */}
+          {!isLoading && filteredUsers.length > 0 && (
+            <div className="mt-4 text-center text-sm text-[#565D6D]">
+              Mostrando {startIndex + 1} a {Math.min(endIndex, filteredUsers.length)} de {filteredUsers.length} usuarios
+              {users.length !== filteredUsers.length && ` (${users.length} total)`}
+            </div>
+          )}
 
           {/* Modal de Nuevo Usuario */}
           <NewUserModal

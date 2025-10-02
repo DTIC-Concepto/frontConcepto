@@ -5,9 +5,11 @@ import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import NewFacultyModal from "@/components/NewFacultyModal";
 import { Search, ChevronLeft, ChevronRight, Plus, SquarePen, Trash2 } from "lucide-react";
-import { Faculty, FacultyFilters } from "@/lib/api";
+import { Faculty, FacultyFilters, Career } from "@/lib/api";
 import { FacultiesService } from "@/lib/faculties";
+import { CareersService } from "@/lib/careers";
 import NotificationService from "@/lib/notifications";
+import Pagination from "@/components/Pagination";
 
 export default function Facultades() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -16,37 +18,36 @@ export default function Facultades() {
   const [faculties, setFaculties] = useState<Faculty[]>([]);
   const [filteredFaculties, setFilteredFaculties] = useState<Faculty[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<boolean | undefined>(undefined);
+  const [careerFilter, setCareerFilter] = useState<string>("all");
+  const [careers, setCareers] = useState<Career[]>([]);
 
   // Configuración de paginación
-  const itemsPerPage = 10;
+  const itemsPerPage = 7;
   const totalPages = Math.ceil(filteredFaculties.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentFaculties = filteredFaculties.slice(startIndex, endIndex);
 
-  // Cargar facultades desde el backend
-  const loadFaculties = async () => {
+  // Cargar facultades y carreras desde el backend
+  const loadData = async () => {
     try {
       setIsLoading(true);
-      const filters: FacultyFilters = {};
       
-      if (searchTerm) {
-        filters.search = searchTerm;
-      }
+      // Cargar facultades
+      const facultiesData = await FacultiesService.getAllFaculties();
+      setFaculties(facultiesData);
       
-      if (statusFilter !== undefined) {
-        filters.estadoActivo = statusFilter;
-      }
-
-      const data = await FacultiesService.getAllFaculties(filters);
-      setFaculties(data);
-      setFilteredFaculties(data);
+      // Cargar carreras para el filtro
+      const careersData = await CareersService.getAllCareers();
+      setCareers(careersData);
+      
+      // Aplicar filtros iniciales
+      applyFilters(facultiesData);
     } catch (error) {
-      console.error('Error al cargar facultades:', error);
+      console.error('Error al cargar datos:', error);
       NotificationService.error(
-        'Error al cargar facultades',
-        'No se pudieron cargar las facultades. Verifique su conexión.'
+        'Error al cargar datos',
+        'No se pudieron cargar los datos. Verifique su conexión.'
       );
       setFaculties([]);
       setFilteredFaculties([]);
@@ -55,30 +56,45 @@ export default function Facultades() {
     }
   };
 
-  // Filtros locales en tiempo real
-  const applyLocalFilters = () => {
-    const filters: FacultyFilters = {
-      search: searchTerm || undefined,
-      estadoActivo: statusFilter
-    };
-
-    const filtered = FacultiesService.filterFaculties(faculties, filters);
+  // Aplicar filtros locales
+  const applyFilters = (facultiesToFilter = faculties) => {
+    let filtered = [...facultiesToFilter];
+    
+    // Filtro por búsqueda
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(faculty => 
+        faculty.codigo.toLowerCase().includes(term) ||
+        faculty.nombre.toLowerCase().includes(term) ||
+        (faculty.descripcion && faculty.descripcion.toLowerCase().includes(term))
+      );
+    }
+    
+    // Filtro por carrera
+    if (careerFilter !== "all") {
+      // Si se selecciona una carrera específica, mostrar solo facultades que tengan esa carrera
+      filtered = filtered.filter(faculty => {
+        const facultyCareers = careers.filter(career => career.facultadId === faculty.id);
+        return facultyCareers.some(career => career.id?.toString() === careerFilter);
+      });
+    }
+    
     setFilteredFaculties(filtered);
     setCurrentPage(1); // Reset a la primera página cuando se filtra
   };
 
   // Cargar datos iniciales
   useEffect(() => {
-    loadFaculties();
+    loadData();
   }, []);
 
-  // Aplicar filtros locales cuando cambien
+  // Aplicar filtros cuando cambien
   useEffect(() => {
-    applyLocalFilters();
-  }, [searchTerm, statusFilter, faculties]);
+    applyFilters();
+  }, [searchTerm, careerFilter, faculties, careers]);
 
   const handleModalSuccess = () => {
-    loadFaculties(); // Recargar la lista después de crear una facultad
+    loadData(); // Recargar la lista después de crear una facultad
   };
 
   const handleEdit = (faculty: Faculty) => {
@@ -102,8 +118,9 @@ export default function Facultades() {
         </div>
 
         {/* Search and Filters */}
-        <div className="bg-white rounded border border-border p-4 mb-6 flex flex-col md:flex-row items-stretch md:items-center gap-4">
-          <div className="flex-1 flex items-center gap-1.5 px-3 py-2 border border-border rounded bg-white">
+        <div className="bg-white rounded border border-border p-4 mb-6 flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
+          {/* Búsqueda */}
+          <div className="flex-1 lg:max-w-[60%] flex items-center gap-1.5 px-3 py-2 border border-border rounded bg-white">
             <Search className="w-4 h-4 text-[#565D6D] flex-shrink-0" />
             <input
               type="text"
@@ -113,28 +130,35 @@ export default function Facultades() {
               className="flex-1 text-sm outline-none text-[#171A1F] placeholder:text-[#565D6D] min-w-0"
             />
           </div>
-          <div className="relative">
-            <select
-              value={statusFilter === undefined ? 'all' : statusFilter.toString()}
-              onChange={(e) => {
-                const value = e.target.value;
-                setStatusFilter(value === 'all' ? undefined : value === 'true');
-              }}
-              className="flex items-center gap-1.5 px-3 py-2 border border-border rounded bg-white md:min-w-[180px] text-sm text-[#171A1F] appearance-none cursor-pointer"
+          
+          {/* Filtros y botón */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+            {/* Filtro por Carreras */}
+            <div className="relative">
+              <select
+                value={careerFilter}
+                onChange={(e) => setCareerFilter(e.target.value)}
+                className="flex items-center gap-1.5 px-3 py-2 border border-border rounded bg-white min-w-[180px] text-sm text-[#171A1F] appearance-none cursor-pointer"
+              >
+                <option value="all">Todas las Carreras</option>
+                {careers.map((career) => (
+                  <option key={career.id} value={career.id?.toString()}>
+                    {career.nombre}
+                  </option>
+                ))}
+              </select>
+              <ChevronLeft className="w-4 h-4 text-[#171A1F] rotate-[-90deg] absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+            </div>
+            
+            {/* Botón Nueva Facultad */}
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="bg-[#003366] text-white px-4 py-2.5 rounded flex items-center justify-center gap-2 text-sm font-medium hover:bg-[#003366]/90 transition-colors whitespace-nowrap"
             >
-              <option value="all">Todos los estados</option>
-              <option value="true">Activas</option>
-              <option value="false">Inactivas</option>
-            </select>
-            <ChevronLeft className="w-4 h-4 text-[#171A1F] rotate-[-90deg] absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+              <Plus className="w-4 h-4" />
+              Nueva Facultad
+            </button>
           </div>
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="bg-[#003366] text-white px-4 py-2.5 rounded flex items-center justify-center gap-2 text-sm font-medium hover:bg-[#003366]/90 transition-colors whitespace-nowrap"
-          >
-            <Plus className="w-4 h-4" />
-            Nueva Facultad
-          </button>
         </div>
 
         {/* Loading State */}
@@ -278,54 +302,12 @@ export default function Facultades() {
 
         {/* Pagination */}
         {!isLoading && filteredFaculties.length > itemsPerPage && (
-          <div className="flex items-center justify-center gap-4 md:gap-6 mt-6 flex-wrap">
-            <button 
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="flex items-center gap-2 text-sm text-[#171A1F] hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Anterior</span>
-            </button>
-            
-            <div className="flex items-center gap-3 md:gap-4">
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-                
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`text-sm transition-colors px-3 py-1 rounded ${
-                      currentPage === pageNum
-                        ? 'bg-[#003366] text-white'
-                        : 'text-[#171A1F] hover:text-primary'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-            </div>
-            
-            <button 
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages}
-              className="flex items-center gap-2 text-sm text-[#171A1F] hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span className="hidden sm:inline">Siguiente</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            className="mt-6"
+          />
         )}
 
         {/* Results counter */}
