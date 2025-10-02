@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { Check, X, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 
 export type NotificationType = 'success' | 'error' | 'warning' | 'info';
 
@@ -38,7 +39,7 @@ class NotificationManager {
     };
   }
 
-  show({ type, title, description, duration = 4500 }: NotificationConfig) {
+  show({ type, title, description, duration = 5000 }: NotificationConfig) {
     const id = this.generateId();
     const notification: NotificationState = {
       id,
@@ -100,96 +101,137 @@ export function useNotifications() {
   };
 }
 
-// Componente de notificación individual
+// Componente de notificación individual con el estilo del archivo Notifications.tsx
 function NotificationItem({ notification, onRemove }: { 
   notification: NotificationState; 
   onRemove: (id: string) => void;
 }) {
-  const getIcon = () => {
-    switch (notification.type) {
+  const getIcon = (type: NotificationType) => {
+    switch(type) {
       case 'success':
-        return (
-          <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-          </svg>
-        );
+        return <Check className="text-white" size={24} strokeWidth={3} />;
       case 'error':
-        return (
-          <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-          </svg>
-        );
+        return <X className="text-white" size={24} strokeWidth={3} />;
       case 'warning':
-        return (
-          <svg className="w-5 h-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-          </svg>
-        );
+        return <AlertTriangle className="text-white" size={24} strokeWidth={2.5} />;
       case 'info':
-        return (
-          <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-          </svg>
-        );
+        return <Info className="text-white" size={24} strokeWidth={2.5} />;
+      default:
+        return <Check className="text-white" size={24} strokeWidth={3} />;
     }
   };
 
-  const getBgColor = () => {
-    switch (notification.type) {
-      case 'success': return 'bg-green-50 border-green-200';
-      case 'error': return 'bg-red-50 border-red-200';
-      case 'warning': return 'bg-yellow-50 border-yellow-200';
-      case 'info': return 'bg-blue-50 border-blue-200';
+  const getIconBgColor = (type: NotificationType) => {
+    switch(type) {
+      case 'success':
+        return 'bg-emerald-600';
+      case 'error':
+        return 'bg-red-600';
+      case 'warning':
+        return 'bg-amber-500';
+      case 'info':
+        return 'bg-blue-500';
+      default:
+        return 'bg-emerald-600';
     }
   };
 
   return (
-    <div className={`rounded-lg border p-4 shadow-lg transition-all duration-300 ${getBgColor()}`}>
-      <div className="flex items-start">
-        <div className="flex-shrink-0">
-          {getIcon()}
+    <div
+      className="bg-white rounded-2xl shadow-lg border border-gray-200 p-5 min-w-[400px] max-w-[500px] animate-slideIn"
+      style={{
+        animation: 'slideIn 0.3s ease-out',
+        // Forzar el fondo blanco para evitar transparencia durante transiciones
+        backgroundColor: '#ffffff !important',
+        zIndex: 9999
+      }}
+    >
+      <div className="flex items-start gap-4">
+        {/* Ícono */}
+        <div className={`${getIconBgColor(notification.type)} rounded-full p-2 flex-shrink-0`}>
+          {getIcon(notification.type)}
         </div>
-        <div className="ml-3 flex-1">
-          <h3 className="text-sm font-medium text-gray-900">
+
+        {/* Contenido */}
+        <div className="flex-1 pt-1">
+          <h3 className="text-xl font-bold text-gray-900 mb-1">
             {notification.title}
           </h3>
           {notification.description && (
-            <p className="mt-1 text-sm text-gray-600">
+            <p className="text-gray-700 text-base leading-relaxed">
               {notification.description}
             </p>
           )}
         </div>
-        <div className="ml-4 flex-shrink-0">
-          <button
-            onClick={() => onRemove(notification.id)}
-            className="inline-flex text-gray-400 hover:text-gray-600 focus:outline-none"
-          >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          </button>
-        </div>
+
+        {/* Botón cerrar */}
+        <button
+          onClick={() => onRemove(notification.id)}
+          className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 mt-1"
+        >
+          <X size={24} strokeWidth={2} />
+        </button>
       </div>
     </div>
   );
 }
 
-// Componente contenedor de notificaciones
+// Componente contenedor de notificaciones con z-index alto para persistir durante transiciones
 export function NotificationContainer() {
   const { notifications, removeNotification } = useNotifications();
 
   if (notifications.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2 w-80">
-      {notifications.map((notification) => (
-        <NotificationItem
-          key={notification.id}
-          notification={notification}
-          onRemove={removeNotification}
-        />
-      ))}
-    </div>
+    <>
+      {/* Contenedor de notificaciones con z-index muy alto */}
+      <div 
+        className="fixed top-6 right-6 space-y-3 pointer-events-none"
+        style={{ 
+          zIndex: 99999, // Z-index muy alto para estar sobre transiciones
+          position: 'fixed' // Asegurar que sea fixed
+        }}
+      >
+        {notifications.map((notification) => (
+          <div key={notification.id} className="pointer-events-auto">
+            <NotificationItem
+              notification={notification}
+              onRemove={removeNotification}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Estilos de animación globales */}
+      <style jsx global>{`
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
+        .animate-slideIn {
+          animation: slideIn 0.3s ease-out;
+        }
+
+        /* Asegurar que las notificaciones mantengan su estilo durante transiciones */
+        .fixed.top-6.right-6 {
+          z-index: 99999 !important;
+          background: transparent !important;
+        }
+
+        /* Forzar estilos de fondo para los elementos de notificación */
+        .fixed.top-6.right-6 > div > div {
+          background-color: #ffffff !important;
+          backdrop-filter: none !important;
+        }
+      `}</style>
+    </>
   );
 }
 

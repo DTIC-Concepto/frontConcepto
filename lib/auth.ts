@@ -2,6 +2,7 @@ import { API_CONFIG, LoginCredentials, LoginResponse, ApiError } from './api';
 
 // Clave para almacenar el token en localStorage
 const TOKEN_KEY = 'auth_token';
+const USER_KEY = 'auth_user';
 
 export class AuthService {
   /**
@@ -30,6 +31,11 @@ export class AuthService {
       // Almacenar el token en localStorage
       if (data.access_token) {
         this.setToken(data.access_token);
+      }
+
+      // Almacenar información del usuario si está disponible
+      if (data.user) {
+        this.setUser(data.user);
       }
 
       return data;
@@ -63,6 +69,33 @@ export class AuthService {
    */
   static removeToken(): void {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+  }
+
+  /**
+   * Almacena la información del usuario
+   */
+  static setUser(user: any): void {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  }
+
+  /**
+   * Obtiene la información del usuario almacenada
+   */
+  static getUser(): any | null {
+    const userData = localStorage.getItem(USER_KEY);
+    return userData ? JSON.parse(userData) : null;
+  }
+
+  /**
+   * Obtiene el nombre completo del usuario
+   */
+  static getUserName(): string {
+    const user = this.getUser();
+    if (user && user.nombres) {
+      return user.apellidos ? `${user.nombres} ${user.apellidos}` : user.nombres;
+    }
+    return 'Usuario';
   }
 
   /**

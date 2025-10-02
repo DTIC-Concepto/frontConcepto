@@ -1,51 +1,78 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { Building, GraduationCap, Users } from "lucide-react";
+import { DashboardService, DashboardStats } from "@/lib/dashboard";
+import { AuthService } from "@/lib/auth";
+import { ActivityRecord } from "@/lib/api";
 
 export default function Dashboard() {
-  const stats = [
+  const [stats, setStats] = useState<DashboardStats>({
+    totalFacultades: 0,
+    totalCarreras: 0,
+    usuariosActivos: 0
+  });
+  const [recentActivity, setRecentActivity] = useState<ActivityRecord[]>([]);
+  const [userName, setUserName] = useState<string>('Usuario');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingActivity, setIsLoadingActivity] = useState(true);
+
+  // Cargar estadísticas al montar el componente
+  useEffect(() => {
+    loadStats();
+    loadRecentActivity();
+    loadUserName();
+  }, []);
+
+  const loadStats = async () => {
+    try {
+      setIsLoading(true);
+      const dashboardStats = await DashboardService.getStats();
+      setStats(dashboardStats);
+    } catch (error) {
+      console.error('Error al cargar estadísticas del dashboard:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadRecentActivity = async () => {
+    try {
+      setIsLoadingActivity(true);
+      const activity = await DashboardService.getRecentActivity(5);
+      setRecentActivity(activity);
+    } catch (error) {
+      console.error('Error al cargar actividad reciente:', error);
+    } finally {
+      setIsLoadingActivity(false);
+    }
+  };
+
+  const loadUserName = () => {
+    const name = AuthService.getUserName();
+    setUserName(name);
+  };
+
+  const statsConfig = [
     {
       icon: Building,
       label: "Total Facultades",
-      value: "5",
+      value: isLoading ? "..." : DashboardService.formatStatValue(stats.totalFacultades),
+      color: "text-blue-600"
     },
     {
       icon: GraduationCap,
       label: "Total Carreras",
-      value: "20",
+      value: isLoading ? "..." : DashboardService.formatStatValue(stats.totalCarreras),
+      color: "text-green-600"
     },
     {
       icon: Users,
       label: "Usuarios Activos",
-      value: "45",
-    },
-  ];
-
-  const recentActivity = [
-    {
-      time: "Hace 5 min",
-      user: "admin@epn.edu.ec",
-      action: "Creó nueva facultad 'FIEC'",
-    },
-    {
-      time: "Hace 15 min",
-      user: "decano@epn.edu.ec",
-      action: "Actualizó datos de carrera 'Ingeniería Civil'",
-    },
-    {
-      time: "Hace 30 min",
-      user: "ci@epn.edu.ec",
-      action: "Revisó informe de acreditación",
-    },
-    {
-      time: "Hace 1 hora",
-      user: "admin@epn.edu.ec",
-      action: "Asignó rol a 'profesor@epn.edu.ec'",
-    },
-    {
-      time: "Hace 2 horas",
-      user: "coordinador@epn.edu.ec",
-      action: "Registró nuevo profesor 'Juan Pérez'",
+      value: isLoading ? "..." : DashboardService.formatStatValue(stats.usuariosActivos),
+      color: "text-purple-600"
     },
   ];
 
@@ -60,12 +87,12 @@ export default function Dashboard() {
       <Layout>
       <div className="p-4 md:p-6 lg:p-8 space-y-6">
         <h1 className="text-[#171A1F] font-montserrat text-2xl md:text-3xl font-bold">
-          Bienvenido, Julio
+          Bienvenido, {userName}
         </h1>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {stats.map((stat, index) => {
+          {statsConfig.map((stat, index) => {
             const Icon = stat.icon;
             return (
               <div
@@ -135,22 +162,36 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentActivity.map((activity, index) => (
-                    <tr
-                      key={index}
-                      className="border-t border-[#DEE1E6] hover:bg-gray-50"
-                    >
-                      <td className="px-4 py-4 text-[#171A1F] font-open-sans text-sm whitespace-nowrap">
-                        {activity.time}
-                      </td>
-                      <td className="px-4 py-4 text-[#565D6D] font-open-sans text-sm">
-                        {activity.user}
-                      </td>
-                      <td className="px-4 py-4 text-[#565D6D] font-open-sans text-sm">
-                        {activity.action}
+                  {isLoadingActivity ? (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-8 text-center text-[#565D6D] font-open-sans text-sm">
+                        Cargando actividad reciente...
                       </td>
                     </tr>
-                  ))}
+                  ) : recentActivity.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-8 text-center text-[#565D6D] font-open-sans text-sm">
+                        No hay actividad reciente
+                      </td>
+                    </tr>
+                  ) : (
+                    recentActivity.map((activity, index) => (
+                      <tr
+                        key={index}
+                        className="border-t border-[#DEE1E6] hover:bg-gray-50"
+                      >
+                        <td className="px-4 py-4 text-[#171A1F] font-open-sans text-sm whitespace-nowrap">
+                          {activity.hora}
+                        </td>
+                        <td className="px-4 py-4 text-[#565D6D] font-open-sans text-sm">
+                          {activity.usuario}
+                        </td>
+                        <td className="px-4 py-4 text-[#565D6D] font-open-sans text-sm">
+                          {activity.accion}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

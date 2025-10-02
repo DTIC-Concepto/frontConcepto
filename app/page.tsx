@@ -158,21 +158,38 @@ export default function LoginPage() {
               >
                 Rol
               </label>
-              <select
-                id="role"
-                value={formData.rol}
-                onChange={(e) =>
-                  setFormData({ ...formData, rol: e.target.value })
-                }
-                className="w-full px-3 py-2 rounded-md border border-[#DEE1E6] bg-white text-[#565D6D] text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]/20 focus:border-[#003366] appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGcgb3BhY2l0eT0iMC41Ij4KPHBhdGggZD0iTTExLjU0NjcgNS41MTY1NUMxMS44MDgzIDUuMjU0OSAxMi4yMzI0IDUuMjU0OSAxMi40OTQxIDUuNTE2NTVDMTIuNzU1OCA1Ljc3ODIgMTIuNzU1OCA2LjIwMjMyIDEyLjQ5NDEgNi40NjM5N0w4LjQ3NDA3IDEwLjQ4NEM4LjIxMjQ0IDEwLjc0NTYgNy43ODgzMyAxMC43NDU2IDcuNTI2NjkgMTAuNDg0TDMuNTA2NjggNi40NjM5N0wzLjQ2MDg4IDYuNDEyOTRDMy4yNDYyNCA2LjE0OTc4IDMuMjYxMzggNS43NjE4NSAzLjUwNjY4IDUuNTE2NTVDM07UxOTcgNS4yNzEyNSA0LjEzOTkxIDUuMjU2MTIgNC40MDMwNyA1LjQ3MDc1TDQuNDU0MSA1LjUxNjU1TDguMDAwMzggOS4wNjI4NUwxMS41NDY3IDUuNTE2NTVaIiBmaWxsPSIjMTcxQTFGIi8+CjwvZz4KPC9zdmc+Cg==')] bg-[length:16px_16px] bg-[right_0.75rem_center] bg-no-repeat pr-10 shadow-sm"
-              >
-                <option value="">Seleccionar un rol</option>
-                {VALID_ROLES.map((role) => (
-                  <option key={role} value={role}>
-                    {ROLE_DISPLAY_NAMES[role]}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  id="role"
+                  value={formData.rol}
+                  onChange={(e) =>
+                    setFormData({ ...formData, rol: e.target.value })
+                  }
+                  className="w-full px-3 py-2 rounded-md border border-[#DEE1E6] bg-white text-[#565D6D] text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]/20 focus:border-[#003366] appearance-none pr-10 shadow-sm"
+                >
+                  <option value="">Seleccionar un rol</option>
+                  {VALID_ROLES.map((role) => (
+                    <option key={role} value={role}>
+                      {ROLE_DISPLAY_NAMES[role]}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <svg
+                    className="w-4 h-4 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
+              </div>
             </div>
 
             <button

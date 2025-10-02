@@ -7,12 +7,13 @@ import { RenderBuilderContent } from "../../components/builder";
 builder.init('181fcc004a5c4a69aa3e354da9c845a6');
 
 interface PageProps {
-  params: {
+  params: Promise<{
     page: string[];
-  };
+  }>;
 }
 
 export default async function Page(props: PageProps) {
+  const params = await props.params;
   const model = "poliacredita-front";
   const content = await builder
     // Get the page content from Builder with the specified options
@@ -20,7 +21,7 @@ export default async function Page(props: PageProps) {
       fetchOptions: { next: { revalidate: 5 } },
       userAttributes: {
         // Use the page path specified in the URL to fetch the content
-        urlPath: "/" + (props?.params?.page?.join("/") || ""),
+        urlPath: "/" + (params?.page?.join("/") || ""),
       },
       // Set prerender to false to return JSON instead of HTML
       prerender: false,
