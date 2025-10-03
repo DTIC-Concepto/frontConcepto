@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronUp, ChevronDown, Check } from "lucide-react";
 import { AuthService } from "../lib/auth";
-import { VALID_ROLES, ROLE_DISPLAY_NAMES } from "../lib/api";
+import { VALID_ROLES, ROLE_DISPLAY_NAMES, RoleType } from "../lib/api";
 import NotificationService from "../lib/notifications";
 
 export default function LoginPage() {
@@ -14,6 +15,25 @@ export default function LoginPage() {
     rol: "",
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+
+  // Cerrar dropdown cuando se hace clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.dropdown-container')) {
+        setIsRoleDropdownOpen(false);
+      }
+    };
+
+    if (isRoleDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isRoleDropdownOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,21 +178,40 @@ export default function LoginPage() {
               >
                 Rol
               </label>
-              <select
-                id="role"
-                value={formData.rol}
-                onChange={(e) =>
-                  setFormData({ ...formData, rol: e.target.value })
-                }
-                className="w-full px-3 py-2 rounded-md border border-[#DEE1E6] bg-white text-[#565D6D] text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]/20 focus:border-[#003366] appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGcgb3BhY2l0eT0iMC41Ij4KPHBhdGggZD0iTTExLjU0NjcgNS41MTY1NUMxMS44MDgzIDUuMjU0OSAxMi4yMzI0IDUuMjU0OSAxMi40OTQxIDUuNTE2NTVDMTIuNzU1OCA1Ljc3ODIgMTIuNzU1OCA2LjIwMjMyIDEyLjQ5NDEgNi40NjM5N0w4LjQ3NDA3IDEwLjQ4NEM4LjIxMjQ0IDEwLjc0NTYgNy43ODgzMyAxMC43NDU2IDcuNTI2NjkgMTAuNDg0TDMuNTA2NjggNi40NjM5N0wzLjQ2MDg4IDYuNDEyOTRDMy4yNDYyNCA2LjE0OTc4IDMuMjYxMzggNS43NjE4NSAzLjUwNjY4IDUuNTE2NTVDM07UxOTcgNS4yNzEyNSA0LjEzOTkxIDUuMjU2MTIgNC40MDMwNyA1LjQ3MDc1TDQuNDU0MSA1LjUxNjU1TDguMDAwMzggOS4wNjI4NUwxMS41NDY3IDUuNTE2NTVaIiBmaWxsPSIjMTcxQTFGIi8+CjwvZz4KPC9zdmc+Cg==')] bg-[length:16px_16px] bg-[right_0.75rem_center] bg-no-repeat pr-10 shadow-sm"
-              >
-                <option value="">Seleccionar un rol</option>
-                {VALID_ROLES.map((role) => (
-                  <option key={role} value={role}>
-                    {ROLE_DISPLAY_NAMES[role]}
-                  </option>
-                ))}
-              </select>
+              <div className="relative dropdown-container">
+                <div
+                  onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
+                  className="w-full px-3 py-2 rounded-md border border-[#DEE1E6] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]/20 focus:border-[#003366] shadow-sm cursor-pointer flex items-center justify-between"
+                >
+                  <span className={formData.rol ? 'text-[#171A1F]' : 'text-[#565D6D]'}>
+                    {formData.rol ? ROLE_DISPLAY_NAMES[formData.rol as RoleType] : 'Seleccionar un rol'}
+                  </span>
+                  <div className="flex flex-col items-center">
+                    <ChevronUp className="w-3 h-3 text-[#565D6D]" />
+                    <ChevronDown className="w-3 h-3 text-[#565D6D] -mt-0.5" />
+                  </div>
+                </div>
+                
+                {isRoleDropdownOpen && (
+                  <div className="absolute z-[9999] w-full mt-1 bg-white border border-[#DEE1E6] rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    {VALID_ROLES.map((role) => (
+                      <div
+                        key={role}
+                        onClick={() => {
+                          setFormData({ ...formData, rol: role });
+                          setIsRoleDropdownOpen(false);
+                        }}
+                        className="px-3 py-2 hover:bg-[#F3F4F6] cursor-pointer text-sm text-[#171A1F] flex items-center justify-between"
+                      >
+                        <span>{ROLE_DISPLAY_NAMES[role]}</span>
+                        {formData.rol === role && (
+                          <Check className="w-4 h-4 text-[#003366]" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <button
