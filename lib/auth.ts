@@ -76,7 +76,12 @@ export class AuthService {
    * Almacena la información del usuario
    */
   static setUser(user: any): void {
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    // Asegurar que el rol esté incluido en el formato correcto
+    const userInfo = {
+      ...user,
+      rol: user.rol || user.role || 'PROFESOR'
+    };
+    localStorage.setItem(USER_KEY, JSON.stringify(userInfo));
   }
 
   /**
@@ -96,6 +101,14 @@ export class AuthService {
       return user.apellidos ? `${user.nombres} ${user.apellidos}` : user.nombres;
     }
     return 'Usuario';
+  }
+
+  /**
+   * Obtiene el rol del usuario
+   */
+  static getUserRole(): string {
+    const user = this.getUser();
+    return user?.rol || user?.role || 'PROFESOR';
   }
 
   /**

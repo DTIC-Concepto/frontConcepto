@@ -101,7 +101,7 @@ export function useNotifications() {
   };
 }
 
-// Componente de notificación individual con el estilo del archivo Notifications.tsx
+// Componente de notificación individual con el estilo del archivo NotificationModel.tsx
 function NotificationItem({ notification, onRemove }: { 
   notification: NotificationState; 
   onRemove: (id: string) => void;
@@ -109,15 +109,15 @@ function NotificationItem({ notification, onRemove }: {
   const getIcon = (type: NotificationType) => {
     switch(type) {
       case 'success':
-        return <Check className="text-white" size={24} strokeWidth={3} />;
+        return <Check className="text-white" size={16} strokeWidth={3} />;
       case 'error':
-        return <X className="text-white" size={24} strokeWidth={3} />;
+        return <X className="text-white" size={16} strokeWidth={3} />;
       case 'warning':
-        return <AlertTriangle className="text-white" size={24} strokeWidth={2.5} />;
+        return <AlertTriangle className="text-white" size={16} strokeWidth={2.5} />;
       case 'info':
-        return <Info className="text-white" size={24} strokeWidth={2.5} />;
+        return <Info className="text-white" size={16} strokeWidth={2.5} />;
       default:
-        return <Check className="text-white" size={24} strokeWidth={3} />;
+        return <Check className="text-white" size={16} strokeWidth={3} />;
     }
   };
 
@@ -138,27 +138,26 @@ function NotificationItem({ notification, onRemove }: {
 
   return (
     <div
-      className="bg-white rounded-2xl shadow-lg border border-gray-200 p-5 min-w-[400px] max-w-[500px] animate-slideIn"
+      className="bg-white rounded-lg shadow-md border border-gray-200 p-3 min-w-[280px] max-w-[350px] animate-slideIn"
       style={{
         animation: 'slideIn 0.3s ease-out',
-        // Forzar el fondo blanco para evitar transparencia durante transiciones
-        backgroundColor: '#ffffff !important',
+        backgroundColor: '#ffffff',
         zIndex: 9999
       }}
     >
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-3">
         {/* Ícono */}
-        <div className={`${getIconBgColor(notification.type)} rounded-full p-2 flex-shrink-0`}>
+        <div className={`${getIconBgColor(notification.type)} rounded-full p-1.5 flex-shrink-0 mt-0.5`}>
           {getIcon(notification.type)}
         </div>
 
         {/* Contenido */}
-        <div className="flex-1 pt-1">
-          <h3 className="text-xl font-bold text-gray-900 mb-1">
+        <div className="flex-1 pt-0.5">
+          <h3 className="text-sm font-semibold text-gray-900 mb-1 leading-tight">
             {notification.title}
           </h3>
           {notification.description && (
-            <p className="text-gray-700 text-base leading-relaxed">
+            <p className="text-xs text-gray-600 leading-relaxed">
               {notification.description}
             </p>
           )}
@@ -167,16 +166,16 @@ function NotificationItem({ notification, onRemove }: {
         {/* Botón cerrar */}
         <button
           onClick={() => onRemove(notification.id)}
-          className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 mt-1"
+          className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
         >
-          <X size={24} strokeWidth={2} />
+          <X size={16} strokeWidth={2} />
         </button>
       </div>
     </div>
   );
 }
 
-// Componente contenedor de notificaciones con z-index alto para persistir durante transiciones
+// Componente contenedor de notificaciones estilo Ant Design
 export function NotificationContainer() {
   const { notifications, removeNotification } = useNotifications();
 
@@ -184,21 +183,14 @@ export function NotificationContainer() {
 
   return (
     <>
-      {/* Contenedor de notificaciones con z-index muy alto */}
-      <div 
-        className="fixed top-6 right-6 space-y-3 pointer-events-none"
-        style={{ 
-          zIndex: 99999, // Z-index muy alto para estar sobre transiciones
-          position: 'fixed' // Asegurar que sea fixed
-        }}
-      >
+      {/* Contenedor de notificaciones con posición fija */}
+      <div className="fixed top-6 right-6 z-50 space-y-3">
         {notifications.map((notification) => (
-          <div key={notification.id} className="pointer-events-auto">
-            <NotificationItem
-              notification={notification}
-              onRemove={removeNotification}
-            />
-          </div>
+          <NotificationItem
+            key={notification.id}
+            notification={notification}
+            onRemove={removeNotification}
+          />
         ))}
       </div>
 
@@ -217,18 +209,6 @@ export function NotificationContainer() {
         
         .animate-slideIn {
           animation: slideIn 0.3s ease-out;
-        }
-
-        /* Asegurar que las notificaciones mantengan su estilo durante transiciones */
-        .fixed.top-6.right-6 {
-          z-index: 99999 !important;
-          background: transparent !important;
-        }
-
-        /* Forzar estilos de fondo para los elementos de notificación */
-        .fixed.top-6.right-6 > div > div {
-          background-color: #ffffff !important;
-          backdrop-filter: none !important;
         }
       `}</style>
     </>
