@@ -59,14 +59,52 @@ export class UsersService {
    */
   static async getUsersWithFullRoles(filters?: UserFilters): Promise<User[]> {
     try {
-      const users = await this.getUsers(filters);
-      
-      // Si necesitamos hacer llamadas adicionales para obtener roles completos,
-      // podemos hacerlo aquí. Por ahora, retornamos los usuarios procesados.
-      return users;
+      // Construir parámetros de consulta
+      const params = new URLSearchParams();
+      if (filters?.rol) params.append('rol', filters.rol);
+      if (filters?.estadoActivo !== undefined) params.append('estadoActivo', filters.estadoActivo.toString());
+      if (filters?.search) params.append('search', filters.search);
+
+      const queryString = params.toString();
+      const url = `${API_CONFIG.ENDPOINTS.USERS}/with-roles${queryString ? `?${queryString}` : ''}`;
+
+      const response = await AuthService.authenticatedFetch(url, {
+        method: 'GET',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Si falla el endpoint especial, usar el método estándar
+        console.warn('Endpoint with-roles no disponible, usando método estándar');
+        return this.getUsers(filters);
+      }
+
+      // Procesar los datos para asegurar que los roles estén en el formato correcto
+      const processedUsers = data.map((user: any) => {
+        // Si el usuario tiene información de roles del nuevo sistema
+        if (user.roles && Array.isArray(user.roles)) {
+          return {
+            ...user,
+            roles: user.roles.map((role: any) => ({
+              rol: role.rol || role.roleType || role,
+              observaciones: role.observaciones || role.observations || ''
+            }))
+          };
+        }
+        
+        // Si no hay roles múltiples, mantener compatibilidad
+        return {
+          ...user,
+          roles: user.rol ? [{ rol: user.rol, observaciones: '' }] : []
+        };
+      });
+
+      return processedUsers;
     } catch (error) {
       console.error('Error obteniendo usuarios con roles completos:', error);
-      throw error;
+      // Fallback al método estándar
+      return this.getUsers(filters);
     }
   }
 

@@ -16,8 +16,6 @@ export async function GET(request: NextRequest) {
     if (rol) params.append('rol', rol);
     if (estadoActivo !== null) params.append('estadoActivo', estadoActivo);
     if (search) params.append('search', search);
-    // Siempre incluir roles completos para la tabla
-    params.append('includeRoles', 'true');
 
     const queryString = params.toString();
     const url = `${API_BASE_URL}/usuarios${queryString ? `?${queryString}` : ''}`;
