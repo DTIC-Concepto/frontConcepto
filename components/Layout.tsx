@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { AuthService } from "@/lib/auth";
+import { ROLE_DISPLAY_NAMES, RoleType } from "@/lib/api";
 import NotificationService from "@/lib/notifications";
 import {
   LayoutDashboard,
@@ -14,6 +16,7 @@ import {
   User,
   Settings,
   LogOut,
+  UserIcon,
 } from "lucide-react";
 
 interface LayoutProps {
@@ -32,6 +35,20 @@ const menuItems = [
 export default function Layout({ children }: LayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [userRole, setUserRole] = useState<string>('');
+  const [userName, setUserName] = useState<string>('');
+
+  // Obtener datos del usuario al cargar el componente
+  useEffect(() => {
+    try {
+      const role = AuthService.getUserRole();
+      const name = AuthService.getUserName();
+      setUserRole(role);
+      setUserName(name);
+    } catch (error) {
+      console.error('Error obteniendo datos del usuario:', error);
+    }
+  }, []);
 
   const handleLogout = () => {
     try {
@@ -94,9 +111,14 @@ export default function Layout({ children }: LayoutProps) {
         </div>
 
         <div className="flex items-center gap-2 md:gap-4">
-          <span className="hidden md:inline text-white text-sm font-montserrat font-semibold">
-            Administrador
-          </span>
+          <div className="hidden md:flex flex-col items-end">
+            <span className="text-white text-sm font-montserrat font-medium">
+              {userName || 'Usuario'}
+            </span>
+            <span className="text-white/70 text-xs font-open-sans">
+              {userRole ? (ROLE_DISPLAY_NAMES[userRole as RoleType] || userRole) : 'Cargando...'}
+            </span>
+          </div>
           <button className="w-10 h-10 flex items-center justify-center rounded bg-[#003366]/40 hover:bg-[#003366]/60 transition-colors">
             <Settings className="w-4 h-4 text-white" />
           </button>
@@ -106,8 +128,8 @@ export default function Layout({ children }: LayoutProps) {
           >
             <LogOut className="w-4 h-4 text-white" />
           </button>
-          <div className="w-9 h-9 rounded-full bg-[#E3F9EB] border border-transparent flex items-center justify-center overflow-hidden">
-            <div className="w-full h-full bg-gradient-to-br from-green-200 to-green-300" />
+          <div className="w-9 h-9 rounded-full bg-white border-2 border-white/20 flex items-center justify-center overflow-hidden">
+            <UserIcon className="w-5 h-5 text-[#003366]" />
           </div>
         </div>
       </header>

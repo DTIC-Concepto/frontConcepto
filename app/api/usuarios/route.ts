@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
     if (rol) params.append('rol', rol);
     if (estadoActivo !== null) params.append('estadoActivo', estadoActivo);
     if (search) params.append('search', search);
+    // Siempre incluir roles completos para la tabla
+    params.append('includeRoles', 'true');
 
     const queryString = params.toString();
     const url = `${API_BASE_URL}/usuarios${queryString ? `?${queryString}` : ''}`;
@@ -40,7 +42,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(data);
+    // Asegurar que cada usuario tenga la información de roles correctamente estructurada
+    const processedData = Array.isArray(data) ? data.map(user => {
+      // Si el usuario tiene múltiples roles, asegurar que estén en el formato correcto
+      if (user.roles && Array.isArray(user.roles)) {
+        return {
+          ...user,
+          // Mantener compatibilidad con el campo 'rol' para el rol principal
+          rol: user.rolPrincipal || user.rol || (user.roles.length > 0 ? user.roles[0].rol : 'PROFESOR')
+        };
+      }
+      return user;
+    }) : data;
+
+    return NextResponse.json(processedData);
   } catch (error) {
     console.error('Error en proxy GET usuarios:', error);
     return NextResponse.json(

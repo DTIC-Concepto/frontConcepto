@@ -29,6 +29,11 @@ export interface LoginResponse {
 }
 
 // Tipos para usuarios
+export interface UserRole {
+  rol: RoleType;
+  observaciones?: string;
+}
+
 export interface User {
   id?: number;
   nombres: string;
@@ -36,7 +41,9 @@ export interface User {
   cedula: string;
   correo: string;
   contrasena?: string; // Solo para creación
-  rol: RoleType;
+  rol: RoleType; // Rol principal para compatibilidad
+  rolPrincipal?: RoleType; // Nuevo campo para rol principal
+  roles?: UserRole[]; // Array de roles para usuarios multi-rol
   facultadId: number;
   estadoActivo: boolean;
   fechaCreacion?: string;

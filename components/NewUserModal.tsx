@@ -2,10 +2,28 @@
 
 import { useState, useEffect } from 'react';
 import { X, ChevronDown, ChevronUp, Search, Check } from 'lucide-react';
-import { CreateUserRequest, VALID_ROLES, ROLE_DISPLAY_NAMES, RoleType, Faculty } from '@/lib/api';
+import { VALID_ROLES, ROLE_DISPLAY_NAMES, RoleType, Faculty } from '@/lib/api';
 import { UsersService } from '@/lib/users';
 import { FacultiesService } from '@/lib/faculties';
 import NotificationService from '@/lib/notifications';
+
+interface RoleSelection {
+  rol: RoleType;
+  observaciones: string;
+}
+
+interface CreateMultiRoleUserRequest {
+  nombres: string;
+  apellidos: string;
+  cedula: string;
+  correo: string;
+  contrasena: string;
+  rolPrincipal: RoleType;
+  roles: RoleSelection[];
+  facultadId: number;
+  estadoActivo: boolean;
+  asignadoPor: string;
+}
 
 interface NewUserModalProps {
   isOpen: boolean;
@@ -14,17 +32,20 @@ interface NewUserModalProps {
 }
 
 export default function NewUserModal({ isOpen, onClose, onUserCreated }: NewUserModalProps) {
-  const [formData, setFormData] = useState<CreateUserRequest>({
+  const [formData, setFormData] = useState<CreateMultiRoleUserRequest>({
     nombres: '',
     apellidos: '',
     cedula: '',
     correo: '',
     contrasena: '',
-    rol: '' as RoleType,
+    rolPrincipal: '' as RoleType,
+    roles: [],
     facultadId: 0,
     estadoActivo: true,
+    asignadoPor: 'admin@universidad.edu'
   });
 
+  const [selectedRoles, setSelectedRoles] = useState<Set<RoleType>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [faculties, setFaculties] = useState<Faculty[]>([]);
   const [facultiesLoading, setFacultiesLoading] = useState(false);
@@ -81,22 +102,112 @@ export default function NewUserModal({ isOpen, onClose, onUserCreated }: NewUser
     }));
   };
 
+  const handleRoleToggle = (role: RoleType) => {
+    const newSelectedRoles = new Set(selectedRoles);
+    
+    if (newSelectedRoles.has(role)) {
+      newSelectedRoles.delete(role);
+    } else {
+      newSelectedRoles.add(role);
+    }
+    
+    setSelectedRoles(newSelectedRoles);
+    
+    // Establecer el primer rol seleccionado como principal
+    const rolesArray = Array.from(newSelectedRoles);
+    if (rolesArray.length > 0) {
+      setFormData(prev => ({ 
+        ...prev, 
+        rolPrincipal: rolesArray[0],
+        roles: rolesArray.map(roleName => ({
+          rol: roleName,
+          observaciones: `Rol asignado: ${ROLE_DISPLAY_NAMES[roleName]}`
+        }))
+      }));
+    } else {
+      setFormData(prev => ({ 
+        ...prev, 
+        rolPrincipal: '' as RoleType,
+        roles: []
+      }));
+    }
+  };
+
   const handleSubmit = async () => {
     try {
       setIsLoading(true);
 
-      // Validar datos
-      const errors = UsersService.validateUser(formData);
-      if (errors.length > 0) {
+      // Validar que se haya seleccionado al menos un rol
+      if (selectedRoles.size === 0) {
         NotificationService.warning(
           'Datos inválidos',
-          errors.join(', ')
+          'Debe seleccionar al menos un rol'
         );
         return;
       }
 
-      // Crear usuario
-      await UsersService.createUser(formData);
+      // Validar formato básico de cédula (solo números y longitud apropiada)
+      if (!/^\d{8,11}$/.test(formData.cedula)) {
+        NotificationService.warning(
+          'Cédula inválida',
+          'La cédula debe contener entre 8 y 11 dígitos numéricos'
+        );
+        return;
+      }
+
+      // Validar formato de correo electrónico
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.correo)) {
+        NotificationService.warning(
+          'Correo inválido',
+          'Por favor, ingresa un correo electrónico válido'
+        );
+        return;
+      }
+
+      // Validar que todos los campos requeridos estén llenos
+      if (!formData.nombres || !formData.apellidos || !formData.cedula || 
+          !formData.correo || !formData.contrasena || !formData.rolPrincipal || !formData.facultadId) {
+        NotificationService.warning(
+          'Datos inválidos',
+          'Todos los campos marcados con * son obligatorios'
+        );
+        return;
+      }
+
+      // Crear usuario usando el nuevo endpoint
+      const response = await fetch('/api/usuarios/multi-rol', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || 'Error al crear usuario';
+        
+        // Mostrar error específico según el tipo
+        if (errorMessage.toLowerCase().includes('cédula')) {
+          NotificationService.error(
+            'Cédula duplicada',
+            'Ya existe un usuario registrado con esta cédula. Por favor, verifica el número de cédula.'
+          );
+        } else if (errorMessage.toLowerCase().includes('correo') || errorMessage.toLowerCase().includes('email')) {
+          NotificationService.error(
+            'Correo duplicado',
+            'Ya existe un usuario registrado con este correo electrónico.'
+          );
+        } else {
+          NotificationService.error(
+            'Error al crear usuario',
+            errorMessage
+          );
+        }
+        return;
+      }
 
       NotificationService.success(
         'Usuario creado',
@@ -107,10 +218,13 @@ export default function NewUserModal({ isOpen, onClose, onUserCreated }: NewUser
       onUserCreated(); // Refrescar la lista
     } catch (error) {
       console.error('Error creando usuario:', error);
-      NotificationService.error(
-        'Error al crear usuario',
-        error instanceof Error ? error.message : 'Ha ocurrido un error inesperado'
-      );
+      // Solo mostrar notificación si no se manejó específicamente antes
+      if (error instanceof Error && !error.message.includes('Ya existe')) {
+        NotificationService.error(
+          'Error inesperado',
+          'Ha ocurrido un error inesperado al crear el usuario. Por favor, inténtalo de nuevo.'
+        );
+      }
     } finally {
       setIsLoading(false);
     }
@@ -123,10 +237,13 @@ export default function NewUserModal({ isOpen, onClose, onUserCreated }: NewUser
       cedula: '',
       correo: '',
       contrasena: '',
-      rol: '' as RoleType,
+      rolPrincipal: '' as RoleType,
+      roles: [],
       facultadId: 0,
       estadoActivo: true,
+      asignadoPor: 'admin@universidad.edu'
     });
+    setSelectedRoles(new Set());
     setIsRoleDropdownOpen(false);
     setIsFacultyDropdownOpen(false);
     setFacultySearchTerm('');
@@ -253,8 +370,11 @@ export default function NewUserModal({ isOpen, onClose, onUserCreated }: NewUser
                 onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
                 className="w-full px-3 py-2 rounded-md border border-[#DEE1E6] bg-white text-[#171A1F] text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]/20 focus:border-[#003366] shadow-sm cursor-pointer flex items-center justify-between"
               >
-                <span className={formData.rol ? 'text-[#171A1F]' : 'text-[#565D6D]'}>
-                  {formData.rol ? ROLE_DISPLAY_NAMES[formData.rol] : 'Seleccionar rol...'}
+                <span className={selectedRoles.size > 0 ? 'text-[#171A1F]' : 'text-[#565D6D]'}>
+                  {selectedRoles.size > 0 
+                    ? `${selectedRoles.size} rol${selectedRoles.size > 1 ? 'es' : ''} seleccionado${selectedRoles.size > 1 ? 's' : ''}`
+                    : 'Seleccionar roles...'
+                  }
                 </span>
                 <div className="flex flex-col items-center">
                   <ChevronUp className="w-3 h-3 text-[#565D6D]" />
@@ -267,16 +387,17 @@ export default function NewUserModal({ isOpen, onClose, onUserCreated }: NewUser
                   {VALID_ROLES.map((role) => (
                     <div
                       key={role}
-                      onClick={() => {
-                        setFormData(prev => ({ ...prev, rol: role }));
-                        setIsRoleDropdownOpen(false);
-                      }}
+                      onClick={() => handleRoleToggle(role)}
                       className="px-3 py-2 hover:bg-[#F3F4F6] cursor-pointer text-sm text-[#171A1F] flex items-center justify-between"
                     >
                       <span>{ROLE_DISPLAY_NAMES[role]}</span>
-                      {formData.rol === role && (
-                        <Check className="w-4 h-4 text-[#003366]" />
-                      )}
+                      <div className={`w-4 h-4 border border-[#DEE1E6] rounded flex items-center justify-center ${
+                        selectedRoles.has(role) ? 'bg-[#003366] border-[#003366]' : 'bg-white'
+                      }`}>
+                        {selectedRoles.has(role) && (
+                          <Check className="w-3 h-3 text-white" />
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

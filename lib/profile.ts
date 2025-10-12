@@ -13,6 +13,36 @@ export interface Permission {
   categoria: string;
 }
 
+export interface UserRole {
+  rol: string;
+  descripcion: string;
+  permisos: string[];
+  nivelAutoridad: number;
+  esPrincipal: boolean;
+  activo: boolean;
+  fechaAsignacion: string;
+}
+
+export interface UserCapabilities {
+  puedeGestionarUsuarios: boolean;
+  puedeCrearCarreras: boolean;
+  puedeVerDashboard: boolean;
+  puedeGenerarReportes: boolean;
+  esAdministrador: boolean;
+  esDecano: boolean;
+  esCoordinador: boolean;
+}
+
+export interface UserProfileWithRoles {
+  usuarioId: number;
+  nombreCompleto: string;
+  rolPrincipal: string;
+  roles: UserRole[];
+  permisosConsolidados: string[];
+  nivelMaximoAutoridad: number;
+  capacidades: UserCapabilities;
+}
+
 export interface UserProfile {
   id: number;
   nombres: string;
@@ -20,7 +50,9 @@ export interface UserProfile {
   correo: string;
   cedula: string;
   telefono?: string;
-  rol: string;
+  rol: string; // Rol principal para compatibilidad
+  rolPrincipal?: string; // Nuevo campo para rol principal
+  roles?: Array<{ rol: string; observaciones?: string }>; // Array de roles para usuarios multi-rol
   estadoActivo: boolean;
   fechaCreacion: string;
   facultadNombre?: string;
@@ -71,6 +103,138 @@ export class ProfileService {
       console.warn('Error al obtener perfil del backend, usando datos locales:', error);
       return this.getUserProfileFromLocalStorage();
     }
+  }
+
+  /**
+   * Obtiene el perfil completo del usuario con roles y permisos
+   */
+  static async getUserProfileWithRoles(): Promise<UserProfileWithRoles> {
+    try {
+      const response = await fetch('/api/usuarios/me/roles-permissions', {
+        method: 'GET',
+        headers: this.getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+        throw new Error(errorData.error || 'Error al obtener perfil con roles');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error obteniendo perfil con roles:', error);
+      // Fallback: crear perfil con roles desde datos básicos
+      return this.createProfileWithRolesFromBasic();
+    }
+  }
+
+  // Método fallback para crear perfil con roles desde datos básicos
+  private static async createProfileWithRolesFromBasic(): Promise<UserProfileWithRoles> {
+    try {
+      const basicProfile = await this.getUserProfile();
+      
+      return {
+        usuarioId: basicProfile.id,
+        nombreCompleto: `${basicProfile.nombres} ${basicProfile.apellidos}`,
+        rolPrincipal: basicProfile.rol,
+        roles: [{
+          rol: basicProfile.rol,
+          descripcion: await this.getRoleDescription(basicProfile.rol),
+          permisos: await this.getUserPermissions(basicProfile.rol),
+          nivelAutoridad: this.getRoleAuthorityLevel(basicProfile.rol),
+          esPrincipal: true,
+          activo: true,
+          fechaAsignacion: basicProfile.fechaCreacion
+        }],
+        permisosConsolidados: await this.getUserPermissions(basicProfile.rol),
+        nivelMaximoAutoridad: this.getRoleAuthorityLevel(basicProfile.rol),
+        capacidades: this.generateCapabilities(basicProfile.rol)
+      };
+    } catch (error) {
+      console.error('Error creando perfil fallback:', error);
+      throw error;
+    }
+  }
+
+  // Helper para obtener nivel de autoridad por rol
+  private static getRoleAuthorityLevel(role: string): number {
+    const authorityLevels: Record<string, number> = {
+      'ADMINISTRADOR': 10,
+      'DGIP': 9,
+      'DECANO': 8,
+      'SUBDECANO': 7,
+      'JEFE_DEPARTAMENTO': 6,
+      'COORDINADOR': 5,
+      'CEI': 4,
+      'PROFESOR': 3
+    };
+    
+    return authorityLevels[role] || 1;
+  }
+
+  // Helper para generar capacidades basadas en el rol
+  private static generateCapabilities(role: string): UserCapabilities {
+    const isAdmin = role === 'ADMINISTRADOR';
+    const isDecano = role === 'DECANO' || role === 'SUBDECANO';
+    const isCoordinador = role === 'COORDINADOR';
+
+    return {
+      puedeGestionarUsuarios: isAdmin,
+      puedeCrearCarreras: isAdmin || isDecano,
+      puedeVerDashboard: true,
+      puedeGenerarReportes: isAdmin || isDecano || isCoordinador,
+      esAdministrador: isAdmin,
+      esDecano: isDecano,
+      esCoordinador: isCoordinador
+    };
+  }
+
+  /**
+   * Formatea los roles para mostrar en la UI
+   */
+  static formatRolesForDisplay(roles: UserRole[]): string {
+    if (!roles || roles.length === 0) return '';
+    
+    const roleNames = roles
+      .filter(role => role.activo)
+      .map(role => {
+        // Mapear nombres de roles a formato de visualización
+        const roleDisplayMap: Record<string, string> = {
+          'ADMINISTRADOR': 'Administrador',
+          'DGIP': 'DGIP',
+          'PROFESOR': 'Profesor',
+          'DECANO': 'Decano',
+          'SUBDECANO': 'Subdecano',
+          'JEFE_DEPARTAMENTO': 'Jefe de Departamento',
+          'COORDINADOR': 'Coordinador',
+          'CEI': 'CEI'
+        };
+        
+        return roleDisplayMap[role.rol] || role.rol;
+      });
+    
+    return roleNames.join(' / ');
+  }
+
+  /**
+   * Obtiene el rol principal del usuario
+   */
+  static getPrincipalRole(roles: UserRole[]): UserRole | null {
+    return roles.find(role => role.esPrincipal && role.activo) || null;
+  }
+
+  /**
+   * Verifica si el usuario tiene un rol específico
+   */
+  static hasRole(roles: UserRole[], roleName: string): boolean {
+    return roles.some(role => role.rol === roleName && role.activo);
+  }
+
+  /**
+   * Verifica si el usuario tiene al menos uno de los roles especificados
+   */
+  static hasAnyRole(roles: UserRole[], roleNames: string[]): boolean {
+    return roles.some(role => roleNames.includes(role.rol) && role.activo);
   }
 
   // Método fallback para obtener datos del usuario desde localStorage

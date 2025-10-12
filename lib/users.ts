@@ -26,9 +26,46 @@ export class UsersService {
         throw new Error(data.error || 'Error al obtener usuarios');
       }
 
-      return data;
+      // Procesar los datos para asegurar que los roles estén en el formato correcto
+      const processedUsers = data.map((user: any) => {
+        // Si el usuario tiene información de roles del nuevo sistema
+        if (user.roles && Array.isArray(user.roles)) {
+          return {
+            ...user,
+            roles: user.roles.map((role: any) => ({
+              rol: role.rol || role.roleType || role,
+              observaciones: role.observaciones || role.observations || ''
+            }))
+          };
+        }
+        
+        // Si no hay roles múltiples, mantener compatibilidad
+        return {
+          ...user,
+          roles: user.rol ? [{ rol: user.rol, observaciones: '' }] : []
+        };
+      });
+
+      return processedUsers;
     } catch (error) {
       console.error('Error obteniendo usuarios:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Método específico para obtener usuarios con información completa de roles
+   * Este método puede hacer una llamada diferente al backend si es necesario
+   */
+  static async getUsersWithFullRoles(filters?: UserFilters): Promise<User[]> {
+    try {
+      const users = await this.getUsers(filters);
+      
+      // Si necesitamos hacer llamadas adicionales para obtener roles completos,
+      // podemos hacerlo aquí. Por ahora, retornamos los usuarios procesados.
+      return users;
+    } catch (error) {
+      console.error('Error obteniendo usuarios con roles completos:', error);
       throw error;
     }
   }
