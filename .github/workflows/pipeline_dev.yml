@@ -1,6 +1,4 @@
-name: CI/CD Pipeline
-env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+name: 🛠️ CI/CD - Development & Test Deploy
 
 on:
   push:
@@ -8,6 +6,11 @@ on:
       - development
   pull_request:
     types: [opened, synchronize, reopened]
+    branches:
+      - development
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
 
 jobs:
   ci:
@@ -17,7 +20,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 0 
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -31,13 +34,14 @@ jobs:
         uses: SonarSource/sonarcloud-github-action@v2.2.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
         with:
           args: >
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
 
-informe-sonar:
+  informe-sonar:
+    name: Generate Sonar Report (Python)
     needs: ci
     runs-on: ubuntu-latest
     if: success()
@@ -66,9 +70,10 @@ informe-sonar:
         run: python scripts/report_commit.py
   
   deploy-test:
-    name: Deploy to Vercel (Test)
+    name: Deploy to Vercel (Test Environment)
     runs-on: ubuntu-latest
-    needs: informe-sonar
+    # Se ejecuta solo después de que el informe de Sonar (y CI) haya terminado con éxito.
+    needs: informe-sonar 
     env:
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_TEST }}
     steps:
