@@ -5,10 +5,9 @@ env:
 on:
   push:
     branches:
-      - development
+      - main
   pull_request:
     types: [opened, synchronize, reopened]
-  workflow_dispatch:  
 
 jobs:
   ci:
@@ -23,7 +22,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install Dependencies
         run: npm ci
@@ -37,26 +36,34 @@ jobs:
           args: >
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
-
-  deploy-test:
-    name: Deploy to Vercel (Test)
-    runs-on: ubuntu-latest
+informe-sonar:
     needs: ci
-    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    if: success()
     env:
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_TEST }}
+      EMAIL_USER: ${{ secrets.EMAIL_USER }}
+      EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+      GH_PAT: ${{ secrets.GH_PAT }}
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      OWNER: ${{ secrets.OWNER }}
+      REPO: ${{ secrets.REPO }}
+      SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
-      - name: Checkout Code
+      - name: Checkout repo
         uses: actions/checkout@v3
-      - name: Install Vercel CLI
-        run: npm install --global vercel@latest
-      - name: Pull Vercel Environment Information
-        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
-      - name: Build Project Artifacts
-        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
-      - name: Deploy Project Artifacts to Vercel (Test)
-        run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
 
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run report generation
+        run: python scripts/report_commit.py
+  
   deploy-production:
     name: Deploy to Vercel (Production)
     runs-on: ubuntu-latest
