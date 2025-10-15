@@ -60,7 +60,8 @@ export default function LoginPage() {
       });
 
       // Si el login es exitoso, configurar usuario en contexto
-      const userRole = formData.rol === 'ADMINISTRADOR' ? 'ADMINISTRADOR' : 'COORDINADOR';
+      // Usar el rol que viene del backend en lugar de hardcodearlo
+      const userRole = response.user?.rol || response.user?.role || formData.rol;
       // Intentar obtener el nombre completo del usuario desde la respuesta del backend
       const fullName = response.user?.nombres 
         ? `${response.user.nombres} ${response.user.apellidos || ''}`.trim()

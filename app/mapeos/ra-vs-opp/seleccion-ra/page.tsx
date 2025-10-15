@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
-import CoordinadorRoute from "@/components/CoordinadorRoute";
+import AcademicRoute from "@/components/AcademicRoute";
 import { Search, ChevronLeft, ChevronRight, Filter, X, Save } from "lucide-react";
 import { raList, type RA, type OPP } from "@/lib/mockData";
 
@@ -54,7 +54,7 @@ export default function SeleccionRA() {
   };
 
   return (
-    <CoordinadorRoute>
+    <AcademicRoute>
       <Layout>
         <div className="p-8 space-y-6">
           {/* Title */}
@@ -216,6 +216,6 @@ export default function SeleccionRA() {
           </div>
         </div>
       </Layout>
-    </CoordinadorRoute>
+    </AcademicRoute>
   );
 }

@@ -42,9 +42,10 @@ const adminMenuItems = [
 
 const coordinadorMenuItems = [
   { icon: Home, label: "Inicio", path: "/dashboard" },
-  { icon: Layers, label: "Objetivos de Carrera", path: "/objetivos" },
-  { icon: BookOpen, label: "R. de Aprendizaje", path: "/aprendizaje" },
-  { icon: FileText, label: "Criterios EUR-ACE", path: "/criterios" },
+  { icon: Layers, label: "Objetivos de Carrera", path: "/objetivos-carrera" },
+  { icon: BookOpen, label: "R. de Aprendizaje", path: "/resultados-aprendizaje" },
+  { icon: FileText, label: "Criterios EUR-ACE", path: "/criterios-eur-ace" },
+  { icon: Table2, label: "Editor de Mapeos", path: "/editor-mapeos" },
   { icon: User, label: "Mi Perfil", path: "/perfil" },
 ];
 
@@ -137,7 +138,7 @@ export default function Layout({ children }: LayoutProps) {
               {user?.name || userName || 'Usuario'}
             </span>
             <span className="text-white/70 text-xs font-open-sans">
-              {user?.role ? (user.role === 'ADMINISTRADOR' ? 'Administrador' : 'Coordinador') : (userRole ? (ROLE_DISPLAY_NAMES[userRole as RoleType] || userRole) : 'Cargando...')}
+              {user?.role ? (ROLE_DISPLAY_NAMES[user.role as RoleType] || user.role) : (userRole ? (ROLE_DISPLAY_NAMES[userRole as RoleType] || userRole) : 'Cargando...')}
             </span>
           </div>
           <button className="w-10 h-10 flex items-center justify-center rounded bg-[#003366]/40 hover:bg-[#003366]/60 transition-colors">
@@ -159,8 +160,8 @@ export default function Layout({ children }: LayoutProps) {
         {/* Sidebar */}
         <aside className="hidden md:flex w-56 lg:w-64 border-r border-[#DEE1E6] bg-white flex-col">
           <nav className="p-2 space-y-1">
-            {user && user.role === 'COORDINADOR' ? (
-              // Sidebar específico para Coordinador (solo cuando user existe y role === 'COORDINADOR')
+            {userRole === 'COORDINADOR' || userRole === 'CEI' ? (
+              // Sidebar específico para roles académicos (COORDINADOR y CEI)
               <>
                 <Link
                   href="/dashboard"
@@ -174,10 +175,10 @@ export default function Layout({ children }: LayoutProps) {
                 </Link>
 
                 <Link
-                  href="/objetivos"
+                  href="/objetivos-carrera"
                   className={cn(
                     "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors mt-1",
-                    pathname === "/objetivos" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
+                    pathname === "/objetivos-carrera" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
                   )}
                 >
                   <Layers className="w-5 h-5" />
@@ -185,10 +186,10 @@ export default function Layout({ children }: LayoutProps) {
                 </Link>
 
                 <Link
-                  href="/aprendizaje"
+                  href="/resultados-aprendizaje"
                   className={cn(
                     "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors mt-1",
-                    pathname === "/aprendizaje" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
+                    pathname === "/resultados-aprendizaje" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
                   )}
                 >
                   <BookOpen className="w-5 h-5" />
@@ -196,10 +197,10 @@ export default function Layout({ children }: LayoutProps) {
                 </Link>
 
                 <Link
-                  href="/criterios"
+                  href="/criterios-eur-ace"
                   className={cn(
                     "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors mt-1",
-                    pathname === "/criterios" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
+                    pathname === "/criterios-eur-ace" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
                   )}
                 >
                   <FileText className="w-5 h-5" />
@@ -250,7 +251,7 @@ export default function Layout({ children }: LayoutProps) {
                 </Link>
               </>
             ) : (
-              // Sidebar original para Administrador (por defecto y cuando no es coordinador)
+              // Sidebar original para Administrador (por defecto y cuando no es coordinador ni CEI)
               adminMenuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.path;

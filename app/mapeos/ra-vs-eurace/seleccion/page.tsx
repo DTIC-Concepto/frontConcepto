@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
-import CoordinadorRoute from "@/components/CoordinadorRoute";
+import AcademicRoute from "@/components/AcademicRoute";
 import { Search, ChevronLeft, ChevronRight, X, Save } from "lucide-react";
 
 // Mock data para Criterios EUR-ACE
@@ -71,7 +71,7 @@ export default function SeleccionEURACE() {
   };
 
   return (
-    <CoordinadorRoute>
+    <AcademicRoute>
       <Layout>
         <div className="p-8 space-y-6">
           {/* Title */}
@@ -217,6 +217,6 @@ export default function SeleccionEURACE() {
           </div>
         </div>
       </Layout>
-    </CoordinadorRoute>
+    </AcademicRoute>
   );
 }

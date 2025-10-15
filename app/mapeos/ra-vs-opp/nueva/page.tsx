@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
-import CoordinadorRoute from "@/components/CoordinadorRoute";
+import AcademicRoute from "@/components/AcademicRoute";
 import { X, Save, ChevronLeft, ChevronRight } from "lucide-react";
 import { type OPP, type RA } from "@/lib/mockData";
 
@@ -61,7 +61,7 @@ export default function JustificarRelacion() {
   };
 
   return (
-    <CoordinadorRoute>
+    <AcademicRoute>
       <Layout>
         <div className="p-8 space-y-6">
           {/* Title */}
@@ -199,6 +199,6 @@ export default function JustificarRelacion() {
           </div>
         </div>
       </Layout>
-    </CoordinadorRoute>
+    </AcademicRoute>
   );
 }

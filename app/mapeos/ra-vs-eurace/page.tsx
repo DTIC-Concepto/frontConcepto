@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
-import CoordinadorRoute from "@/components/CoordinadorRoute";
+import AcademicRoute from "@/components/AcademicRoute";
 import { Plus, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -56,7 +56,7 @@ export default function MatrizRAvsEURACE() {
   };
 
   return (
-    <CoordinadorRoute>
+    <AcademicRoute>
       <Layout>
         <div className="p-8 space-y-8">
           {/* Header Section */}
@@ -145,6 +145,6 @@ export default function MatrizRAvsEURACE() {
           </div>
         </div>
       </Layout>
-    </CoordinadorRoute>
+    </AcademicRoute>
   );
 }

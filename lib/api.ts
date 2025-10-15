@@ -8,6 +8,10 @@ export const API_CONFIG = {
     FACULTADES: '/api/facultades',
     CARRERAS: '/api/carreras',
     DASHBOARD_ACTIVITY: '/api/dashboard/activity',
+    // Academic Management
+    PROGRAM_OBJECTIVES: '/api/program-objectives',
+    LEARNING_OUTCOMES: '/api/learning-outcomes',
+    EUR_ACE_CRITERIA: '/api/eur-ace-criteria',
   }
 };
 

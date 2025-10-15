@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
-import CoordinadorRoute from "@/components/CoordinadorRoute";
+import AcademicRoute from "@/components/AcademicRoute";
 import { Search, ChevronLeft, ChevronRight, X, Save } from "lucide-react";
 import { oppList, type OPP } from "@/lib/mockData";
 
@@ -40,7 +40,7 @@ export default function SeleccionOPP() {
   };
 
   return (
-    <CoordinadorRoute>
+    <AcademicRoute>
       <Layout>
         <div className="p-8 space-y-6">
           {/* Title */}
@@ -186,6 +186,6 @@ export default function SeleccionOPP() {
           </div>
         </div>
       </Layout>
-    </CoordinadorRoute>
+    </AcademicRoute>
   );
 }

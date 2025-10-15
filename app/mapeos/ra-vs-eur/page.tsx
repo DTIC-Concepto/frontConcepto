@@ -1,11 +1,11 @@
 "use client";
 
 import Layout from "@/components/Layout";
-import CoordinadorRoute from "@/components/CoordinadorRoute";
+import AcademicRoute from "@/components/AcademicRoute";
 
 export default function MapeoRaVsEur() {
   return (
-    <CoordinadorRoute>
+    <AcademicRoute>
       <Layout>
         <div className="p-8">
           <h1 className="text-4xl font-bold text-[#171A1F] font-['Open_Sans'] mb-8">
@@ -20,6 +20,6 @@ export default function MapeoRaVsEur() {
           </div>
         </div>
       </Layout>
-    </CoordinadorRoute>
+    </AcademicRoute>
   );
 }
