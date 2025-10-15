@@ -228,7 +228,7 @@ export default function Layout({ children }: LayoutProps) {
                         <span>RA vs OPP</span>
                       </Link>
                       <Link
-                        href="/mapeos/ra-vs-eur"
+                        href="/mapeos/ra-vs-eurace"
                         className="flex items-center gap-2 px-3 py-2 text-sm text-[#565D6D] hover:bg-gray-50 rounded-md"
                       >
                         <LayoutGrid className="w-3 h-3" />

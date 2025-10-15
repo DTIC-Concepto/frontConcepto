@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -6,14 +6,53 @@ import Layout from "@/components/Layout";
 import CoordinadorRoute from "@/components/CoordinadorRoute";
 import { Plus, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { oppList, raList, initialRelationships, type Relationship } from "@/lib/mockData";
 
-export default function MatrizRAvsOPP() {
+// Mock data para RA
+const raList = [
+  { code: "RA1", name: "Analizar problemas complejos de ingeniería" },
+  { code: "RA2", name: "Diseñar soluciones para problemas complejos" },
+  { code: "RA3", name: "Realizar investigación de problemas complejos" },
+  { code: "RA4", name: "Usar técnicas, habilidades y herramientas modernas" },
+  { code: "RA5", name: "Trabajo individual y en equipos" },
+  { code: "RA6", name: "Comunicación efectiva" },
+  { code: "RA7", name: "Ingeniería y sociedad" },
+  { code: "RA8", name: "Ética profesional" },
+  { code: "RA9", name: "Responsabilidad profesional" },
+  { code: "RA10", name: "Aprendizaje continuo" },
+  { code: "RA11", name: "Gestión de proyectos" },
+  { code: "RA12", name: "Aspectos económicos" }
+]
+
+// Mock data para Criterios EUR-ACE
+const euraceList = [
+  { code: "EUR-ACE 1", name: "Conocimiento y comprensión" },
+  { code: "EUR-ACE 2", name: "Análisis en ingeniería" },
+  { code: "EUR-ACE 3", name: "Diseño en ingeniería" },
+  { code: "EUR-ACE 4", name: "Investigación" },
+  { code: "EUR-ACE 5", name: "Aplicación práctica de la ingeniería" },
+  { code: "EUR-ACE 6", name: "Transferencia de tecnología" },
+  { code: "EUR-ACE 7", name: "Responsabilidad profesional y social" }
+]
+
+// Mock data para relaciones existentes
+const initialRelationships = [
+  { euraceCode: "EUR-ACE 1", raCode: "RA1" },
+  { euraceCode: "EUR-ACE 1", raCode: "RA2" },
+  { euraceCode: "EUR-ACE 2", raCode: "RA1" },
+  { euraceCode: "EUR-ACE 3", raCode: "RA2" },
+  { euraceCode: "EUR-ACE 4", raCode: "RA3" },
+  { euraceCode: "EUR-ACE 5", raCode: "RA4" },
+  { euraceCode: "EUR-ACE 6", raCode: "RA5" },
+  { euraceCode: "EUR-ACE 7", raCode: "RA7" },
+  { euraceCode: "EUR-ACE 7", raCode: "RA8" }
+]
+
+export default function MatrizRAvsEURACE() {
   const router = useRouter();
-  const [relationships, setRelationships] = useState<Relationship[]>(initialRelationships);
+  const [relationships, setRelationships] = useState(initialRelationships);
 
-  const hasRelationship = (oppCode: string, raCode: string) => {
-    return relationships.some(rel => rel.oppCode === oppCode && rel.raCode === raCode);
+  const hasRelationship = (euraceCode: string, raCode: string) => {
+    return relationships.some(rel => rel.euraceCode === euraceCode && rel.raCode === raCode);
   };
 
   return (
@@ -25,14 +64,14 @@ export default function MatrizRAvsOPP() {
             <div className="flex justify-between items-start">
               <div className="space-y-2">
                 <h1 className="text-2xl font-bold text-[#171A1F] font-montserrat">
-                  Matriz: Objetivos de Carrera (OPP) y Resultados de aprendizaje (RA)
+                  Matriz: Resultados de Aprendizaje (RA) y Criterios EUR-ACE
                 </h1>
                 <p className="text-sm text-[#565D6D] font-open-sans">
-                  La tabla muestra la relación entre los objetivos de carrera (perfil profesional) y los resultados de aprendizaje (perfil de egreso) de una carrera.
+                  La tabla muestra la relación entre los Resultados de Aprendizaje (RA) y los Criterios EUR-ACE.
                 </p>
               </div>
               <Button 
-                onClick={() => router.push('/mapeos/ra-vs-opp/seleccion')}
+                onClick={() => router.push('/mapeos/ra-vs-eurace/seleccion')}
                 className="bg-[#003366] hover:bg-[#002244] text-white gap-2"
               >
                 <Plus className="w-4 h-4" />
@@ -43,11 +82,11 @@ export default function MatrizRAvsOPP() {
             <div className="flex items-center gap-4 text-sm">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-[#2D61A4] rounded" />
-                <span className="text-[#171A1F] font-open-sans">Objetivos de Carrera</span>
+                <span className="text-[#171A1F] font-open-sans">Criterios EUR-ACE</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-gray-200 rounded" />
-                <span className="text-[#171A1F] font-open-sans">Resultados de Aprendizaje Carrera</span>
+                <span className="text-[#171A1F] font-open-sans">Resultados de Aprendizaje</span>
               </div>
             </div>
           </div>
@@ -72,18 +111,18 @@ export default function MatrizRAvsOPP() {
                   </tr>
                 </thead>
                 <tbody>
-                  {oppList.map((opp, idx) => (
-                    <tr key={opp.code}>
+                  {euraceList.map((eurace, idx) => (
+                    <tr key={eurace.code}>
                       <td className="px-0 py-0">
                         <div className="w-full bg-[#2D61A4] text-white rounded px-4 py-3 h-[45px] flex items-center justify-between">
-                          <span className="text-sm font-medium font-open-sans">{opp.code}</span>
+                          <span className="text-sm font-medium font-open-sans">{eurace.code}</span>
                           <Info className="w-4 h-4 text-white ml-1 flex-shrink-0" />
                         </div>
                       </td>
                       {raList.map((ra) => (
-                        <td key={`${opp.code}-${ra.code}`} className="px-0 py-0">
+                        <td key={`${eurace.code}-${ra.code}`} className="px-0 py-0">
                           <div className="bg-white rounded h-[45px] flex items-center justify-center relative cursor-pointer hover:bg-gray-50 transition-colors">
-                            {hasRelationship(opp.code, ra.code) ? (
+                            {hasRelationship(eurace.code, ra.code) ? (
                               <div className="absolute inset-0 bg-emerald-500/50 hover:bg-emerald-500/70 rounded flex items-center justify-center transition-colors">
                                 <svg className="w-4 h-4 text-white" viewBox="0 0 16 16" fill="none">
                                   <path
