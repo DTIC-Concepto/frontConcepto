@@ -17,13 +17,15 @@ OWNER = os.getenv("OWNER")
 REPO = os.getenv("REPO")
 SONAR_PROJECT_KEY = os.getenv("SONAR_PROJECT_KEY")
 headers = {"Authorization": f"Bearer {GH_PAT}"}
+# -----------------------------
+
+# Configuración Gemini (gemini-2.5-pro)
 
 # -----------------------------
-# Configuración Gemini (gemini-2.5-pro)
-# -----------------------------
+
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=GEMINI_API_KEY)
-MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-2.5-pro") 
+MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-2.5-pro")
 
 # Nombres de los archivos de artefactos
 DEUDA_TECNICA_FILE = "deuda_tecnica_informe.txt" 
@@ -33,10 +35,14 @@ ANALISIS_IA_FILE = "analisis_ia_commit.txt"
 # Funciones auxiliares
 # -----------------------------
 
-def get_latest_commit():
-    """Obtiene los detalles del commit más reciente."""
+def get_latest_commit(branch_name):
+    """Obtiene los detalles del commit más reciente de una rama específica."""
     url = f"https://api.github.com/repos/{OWNER}/{REPO}/commits"
-    r = requests.get(url, headers=headers, params={"per_page": 1})
+    
+    # Usar 'sha' para filtrar por rama
+    params = {"per_page": 1, "sha": branch_name}
+    
+    r = requests.get(url, headers=headers, params=params)
     
     if r.status_code == 200 and r.json():
         commit_data = r.json()[0]
@@ -60,7 +66,7 @@ def get_latest_commit():
                 "full_message": full_details["commit"]["message"]
             }
     
-    print(f"❌ Error obteniendo el último commit de GitHub: {r.status_code}")
+    print(f"❌ Error obteniendo el último commit de GitHub de la rama '{branch_name}': {r.status_code}")
     return None
 
 def get_sonar_metrics_totals():
@@ -270,9 +276,9 @@ def send_email_with_artifacts(to_emails, subject, body, attachments=[]):
                 name = os.path.basename(file_path)
             
             if name.endswith(".txt"):
-                 msg.add_attachment(data, maintype="text", subtype="plain", filename=name)
+                msg.add_attachment(data, maintype="text", subtype="plain", filename=name)
             else:
-                 msg.add_attachment(data, maintype="application", subtype="octet-stream", filename=name)
+                msg.add_attachment(data, maintype="application", subtype="octet-stream", filename=name)
         except FileNotFoundError:
             print(f"Archivo adjunto no encontrado: {file_path}")
             continue
@@ -292,8 +298,18 @@ def send_email_with_artifacts(to_emails, subject, body, attachments=[]):
 def main():
     print("Iniciando pipeline de informe de commit y calidad (Descripción IA + 5 métricas + Detalle TXT).")
     
+    # DETECCIÓN AUTOMÁTICA DE RAMA USANDO VARIABLE DE ENTORNO DE GITHUB ACTIONS
+    BRANCH_TO_ANALYZE = os.getenv("GITHUB_REF_NAME") 
+    
+    if not BRANCH_TO_ANALYZE:
+        print(f"⚠️ Advertencia: No se detectó la rama automáticamente. Usando el fallback")
+    
+    print(f"⚙️ Analizando la rama detectada: {BRANCH_TO_ANALYZE}")
+    
     # 1. Obtener detalles del último commit
-    latest_commit = get_latest_commit()
+    # Se pasa la rama detectada/fallback a la función
+    latest_commit = get_latest_commit(BRANCH_TO_ANALYZE) 
+    
     if not latest_commit:
         print("❌ No se pudo obtener el último commit. Finalizando.")
         return
@@ -303,7 +319,7 @@ def main():
     description = latest_commit["description"]
     files_modified = latest_commit["files_modified"]
     full_message = latest_commit["full_message"]
-    print(f"✅ Commit más reciente obtenido: {sha[:7]} - {title}")
+    print(f"✅ Commit más reciente de '{BRANCH_TO_ANALYZE}' obtenido: {sha[:7]} - {title}")
     
     # 2. Obtener métricas de SonarCloud (SOLO 5)
     print("⏳ Obteniendo métricas totales de SonarCloud...")
@@ -344,7 +360,7 @@ def main():
 
     # Generar el cuerpo del correo (y el contenido del archivo de informe general)
     body = "--- Informe de Commit y Calidad de Código ---\n\n"
-    body += f"⭐ **Commit Analizado:** {sha}\n"
+    body += f"⭐ **Commit Analizado:** {sha} (Rama: {BRANCH_TO_ANALYZE})\n"
     body += f"📝 **Título:** {title}\n"
     body += f"📖 **Descripción original:**\n{description}\n"
     body += "\n--- Descripción Funcional (Gemini 2.5 Pro) ---\n"
