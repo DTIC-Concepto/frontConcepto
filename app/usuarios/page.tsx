@@ -226,13 +226,13 @@ export default function Usuarios() {
                         key={user.id || index}
                         className="border-t border-[#DEE1E6] hover:bg-gray-50"
                       >
-                        <td className="px-4 py-6 text-[#171A1F] font-open-sans text-sm">
+                        <td className="px-4 py-8 text-[#171A1F] font-open-sans text-sm">
                           {user.correo}
                         </td>
-                        <td className="px-4 py-6 text-[#171A1F] font-open-sans text-sm">
+                        <td className="px-4 py-8 text-[#171A1F] font-open-sans text-sm">
                           {`${user.nombres} ${user.apellidos}`}
                         </td>
-                        <td className="px-4 py-6 text-[#171A1F] font-open-sans text-sm">
+                        <td className="px-4 py-8 text-[#171A1F] font-open-sans text-sm">
                           {user.roles && user.roles.length > 0 
                             ? user.roles
                                 .filter(role => role.rol) // Filtrar roles válidos
@@ -241,7 +241,7 @@ export default function Usuarios() {
                             : ROLE_DISPLAY_NAMES[user.rol] || user.rol
                           }
                         </td>
-                        <td className="px-4 py-6">
+                        <td className="px-4 py-8">
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                               user.estadoActivo
@@ -252,7 +252,7 @@ export default function Usuarios() {
                             {user.estadoActivo ? 'Activo' : 'Inactivo'}
                           </span>
                         </td>
-                        <td className="px-4 py-6">
+                        <td className="px-4 py-8">
                           <div className="flex items-center gap-2">
                             <button 
                               className="p-1.5 text-[#003366] hover:bg-gray-100 rounded transition-colors"

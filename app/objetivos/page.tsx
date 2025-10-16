@@ -3,9 +3,10 @@
 import { useState } from "react";
 import Layout from "@/components/Layout";
 import CoordinadorRoute from "@/components/CoordinadorRoute";
-import { Plus, Search, Edit2, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, Edit2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import Pagination from "@/components/Pagination";
 
 interface Objetivo {
   id: string;
@@ -43,7 +44,36 @@ export default function Objetivos() {
       codigo: "OPP5",
       descripcion: "Comprender los principios fundamentales de la ingeniería de software.",
     },
+    {
+      id: "6",
+      codigo: "OPP6",
+      descripcion: "Evaluar y mejorar la calidad del software mediante pruebas y métricas.",
+    },
+    {
+      id: "7",
+      codigo: "OPP7",
+      descripcion: "Liderar equipos de desarrollo y gestionar recursos técnicos.",
+    },
   ];
+
+  // Filtrar objetivos basado en el término de búsqueda
+  const filteredObjetivos = objetivos.filter(objetivo =>
+    objetivo.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    objetivo.descripcion.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Configuración de paginación
+  const itemsPerPage = 5;
+  const totalPages = Math.ceil(filteredObjetivos.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentObjetivos = filteredObjetivos.slice(startIndex, endIndex);
+
+  // Resetear página cuando cambie el filtro
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
 
   return (
     <CoordinadorRoute>
@@ -66,7 +96,7 @@ export default function Objetivos() {
               type="text"
               placeholder="Buscar por código o descripción..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="pl-10 border-[#DEE1E6]"
             />
           </div>
@@ -89,17 +119,17 @@ export default function Objetivos() {
                 </tr>
               </thead>
               <tbody>
-                {objetivos.map((objetivo) => (
+                {currentObjetivos.map((objetivo) => (
                   <tr key={objetivo.id} className="border-b border-[#DEE1E6] last:border-0">
-                    <td className="px-7 py-6">
+                    <td className="px-7 py-8">
                       <span className="text-sm font-semibold text-[#171A1F] font-['Open_Sans']">
                         {objetivo.codigo}
                       </span>
                     </td>
-                    <td className="px-5 py-6">
+                    <td className="px-5 py-8">
                       <span className="text-sm text-[#565D6D]">{objetivo.descripcion}</span>
                     </td>
-                    <td className="px-6 py-6">
+                    <td className="px-6 py-8">
                       <div className="flex items-center justify-center gap-2">
                         <Button
                           variant="ghost"
@@ -124,25 +154,12 @@ export default function Objetivos() {
           </div>
         </div>
 
-        <div className="mt-8 flex items-center justify-center gap-4">
-          <button className="flex items-center gap-1 text-sm text-[#171A1F] hover:text-[#003366] font-['Open_Sans']">
-            <ChevronLeft className="w-4 h-4" />
-            Previous
-          </button>
-          <button className="w-8 h-8 text-sm text-[#171A1F] hover:bg-gray-100 rounded font-['Open_Sans']">
-            1
-          </button>
-          <button className="w-8 h-8 text-sm text-[#171A1F] hover:bg-gray-100 rounded font-['Open_Sans']">
-            2
-          </button>
-          <button className="w-8 h-8 text-sm text-[#171A1F] hover:bg-gray-100 rounded font-['Open_Sans']">
-            3
-          </button>
-          <button className="flex items-center gap-1 text-sm text-[#171A1F] hover:text-[#003366] font-['Open_Sans']">
-            Next
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          className="mt-8"
+        />
       </div>
     </Layout>
     </CoordinadorRoute>

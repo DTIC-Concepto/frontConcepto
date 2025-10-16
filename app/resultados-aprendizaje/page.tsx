@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { Plus, Search, Edit2, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, Edit2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,6 +11,7 @@ import { LearningOutcome, LearningOutcomesService } from "@/lib/learning-outcome
 import { UserCareerService } from "@/lib/user-career";
 import NotificationService from "@/lib/notifications";
 import NewLearningOutcomeModal from "@/components/NewLearningOutcomeModal";
+import Pagination from "@/components/Pagination";
 
 export default function ResultadosAprendizaje() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -19,7 +20,14 @@ export default function ResultadosAprendizaje() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
+  // Estados de paginación para cada tab
+  const [currentPageGenerales, setCurrentPageGenerales] = useState(1);
+  const [currentPageEspecificos, setCurrentPageEspecificos] = useState(1);
+  
   const canCreateOutcomes = UserCareerService.canCreateLearningOutcomes();
+
+  // Configuración de paginación
+  const itemsPerPage = 5;
 
   // Cargar resultados al montar el componente
   useEffect(() => {
@@ -47,7 +55,7 @@ export default function ResultadosAprendizaje() {
     if (!canCreateOutcomes) {
       NotificationService.warning(
         'Sin permisos',
-        'Solo los miembros del CEI pueden crear resultados de aprendizaje.'
+        'Solo los coordinadores pueden crear resultados de aprendizaje.'
       );
       return;
     }
@@ -66,6 +74,26 @@ export default function ResultadosAprendizaje() {
                            outcome.descripcion.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesSearch && outcome.tipo === tipo;
     });
+  };
+
+  // Función para obtener resultados paginados para cada tab
+  const getPaginatedResults = (tipo: "GENERAL" | "ESPECIFICO") => {
+    const filteredResults = getFilteredResults(tipo);
+    const currentPage = tipo === "GENERAL" ? currentPageGenerales : currentPageEspecificos;
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return {
+      data: filteredResults.slice(startIndex, endIndex),
+      totalPages: Math.ceil(filteredResults.length / itemsPerPage),
+      currentPage: currentPage
+    };
+  };
+
+  // Resetear página cuando cambie el filtro
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPageGenerales(1);
+    setCurrentPageEspecificos(1);
   };
 
   const ResultsTable = ({ data }: { data: LearningOutcome[] }) => (
@@ -101,15 +129,15 @@ export default function ResultadosAprendizaje() {
             ) : (
               data.map((resultado) => (
                 <tr key={resultado.id} className="border-b border-[#DEE1E6] last:border-0">
-                  <td className="px-7 py-6">
+                  <td className="px-7 py-8">
                     <span className="text-sm font-semibold text-[#171A1F] font-['Open_Sans']">
                       {resultado.codigo}
                     </span>
                   </td>
-                  <td className="px-5 py-6">
+                  <td className="px-5 py-8">
                     <span className="text-sm text-[#565D6D]">{resultado.descripcion}</span>
                   </td>
-                  <td className="px-6 py-6">
+                  <td className="px-6 py-8">
                     <div className="flex items-center justify-center gap-2">
                       <Button
                         variant="ghost"
@@ -179,33 +207,20 @@ export default function ResultadosAprendizaje() {
                     type="text"
                     placeholder="Buscar por código o descripción..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => handleSearchChange(e.target.value)}
                     className="pl-10 border-[#DEE1E6]"
                   />
                 </div>
               </div>
 
-              <ResultsTable data={getFilteredResults("GENERAL")} />
+              <ResultsTable data={getPaginatedResults("GENERAL").data} />
 
-              <div className="mt-8 flex items-center justify-center gap-4">
-                <button className="flex items-center gap-1 text-sm text-[#171A1F] hover:text-[#003366] font-['Open_Sans']">
-                  <ChevronLeft className="w-4 h-4" />
-                  Previous
-                </button>
-                <button className="w-8 h-8 text-sm text-[#171A1F] hover:bg-gray-100 rounded font-['Open_Sans']">
-                  1
-                </button>
-                <button className="w-8 h-8 text-sm text-[#171A1F] hover:bg-gray-100 rounded font-['Open_Sans']">
-                  2
-                </button>
-                <button className="w-8 h-8 text-sm text-[#171A1F] hover:bg-gray-100 rounded font-['Open_Sans']">
-                  3
-                </button>
-                <button className="flex items-center gap-1 text-sm text-[#171A1F] hover:text-[#003366] font-['Open_Sans']">
-                  Next
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
+              <Pagination
+                currentPage={getPaginatedResults("GENERAL").currentPage}
+                totalPages={getPaginatedResults("GENERAL").totalPages}
+                onPageChange={setCurrentPageGenerales}
+                className="mt-8"
+              />
             </TabsContent>
 
             <TabsContent value="especificos" className="mt-6">
@@ -216,33 +231,20 @@ export default function ResultadosAprendizaje() {
                     type="text"
                     placeholder="Buscar por código o descripción..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => handleSearchChange(e.target.value)}
                     className="pl-10 border-[#DEE1E6]"
                   />
                 </div>
               </div>
 
-              <ResultsTable data={getFilteredResults("ESPECIFICO")} />
+              <ResultsTable data={getPaginatedResults("ESPECIFICO").data} />
 
-              <div className="mt-8 flex items-center justify-center gap-4">
-                <button className="flex items-center gap-1 text-sm text-[#171A1F] hover:text-[#003366] font-['Open_Sans']">
-                  <ChevronLeft className="w-4 h-4" />
-                  Previous
-                </button>
-                <button className="w-8 h-8 text-sm text-[#171A1F] hover:bg-gray-100 rounded font-['Open_Sans']">
-                  1
-                </button>
-                <button className="w-8 h-8 text-sm text-[#171A1F] hover:bg-gray-100 rounded font-['Open_Sans']">
-                  2
-                </button>
-                <button className="w-8 h-8 text-sm text-[#171A1F] hover:bg-gray-100 rounded font-['Open_Sans']">
-                  3
-                </button>
-                <button className="flex items-center gap-1 text-sm text-[#171A1F] hover:text-[#003366] font-['Open_Sans']">
-                  Next
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
+              <Pagination
+                currentPage={getPaginatedResults("ESPECIFICO").currentPage}
+                totalPages={getPaginatedResults("ESPECIFICO").totalPages}
+                onPageChange={setCurrentPageEspecificos}
+                className="mt-8"
+              />
             </TabsContent>
           </Tabs>
 

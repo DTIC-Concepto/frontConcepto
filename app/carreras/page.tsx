@@ -228,12 +228,12 @@ export default function Carreras() {
                 <tbody>
                   {currentCareers.map((career) => (
                     <tr key={career.id} className="border-t border-border">
-                      <td className="px-4 py-6 text-sm text-[#171A1F] font-medium w-32">{career.codigo}</td>
-                      <td className="px-4 py-6 text-sm text-[#171A1F] w-80">{career.nombre}</td>
-                      <td className="px-4 py-6 text-sm text-[#171A1F] w-40">
+                      <td className="px-4 py-8 text-sm text-[#171A1F] font-medium w-32">{career.codigo}</td>
+                      <td className="px-4 py-8 text-sm text-[#171A1F] w-80">{career.nombre}</td>
+                      <td className="px-4 py-8 text-sm text-[#171A1F] w-40">
                         {career.facultadNombre || 'Sin facultad'}
                       </td>
-                      <td className="px-4 py-6 text-sm w-60">
+                      <td className="px-4 py-8 text-sm w-60">
                         <span className={`${
                           career.coordinadorNombre === 'Sin asignar' 
                             ? 'text-[#565D6D] italic' 
@@ -242,7 +242,7 @@ export default function Carreras() {
                           {career.coordinadorNombre || 'Sin asignar'}
                         </span>
                       </td>
-                      <td className="px-4 py-6 w-32">
+                      <td className="px-4 py-8 w-32">
                         <div className="flex items-center justify-center gap-2">
                           <button 
                             onClick={() => handleEdit(career)}

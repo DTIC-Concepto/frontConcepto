@@ -38,7 +38,7 @@ export class UserCareerService {
         facultadId: user.facultadId || null,
         facultadNombre: user.facultadNombre || null,
         puedeCrearObjetivos: userRole === 'COORDINADOR',
-        puedeCrearResultados: userRole === 'CEI',
+        puedeCrearResultados: userRole === 'COORDINADOR',
         puedeCrearCriterios: userRole === 'CEI'
       };
     } catch (error) {

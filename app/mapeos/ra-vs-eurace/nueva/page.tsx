@@ -4,14 +4,20 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import AcademicRoute from "@/components/AcademicRoute";
-import { X, Save, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Save, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { type EurAceCriterion } from "@/lib/eur-ace-criteria";
+import { type LearningOutcome } from "@/lib/learning-outcomes";
+import { MappingsService } from "@/lib/mappings";
+import NotificationService from "@/lib/notifications";
 
 export default function JustificarRelacion() {
   const router = useRouter();
-  const [selectedEURACE, setSelectedEURACE] = useState<any | null>(null);
-  const [selectedRA, setSelectedRA] = useState<any | null>(null);
+  const [selectedEURACE, setSelectedEURACE] = useState<EurAceCriterion | null>(null);
+  const [selectedRA, setSelectedRA] = useState<LearningOutcome | null>(null);
   const [justification, setJustification] = useState('');
   const [currentStep, setCurrentStep] = useState(3);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Cargar las selecciones de los pasos anteriores
   useEffect(() => {
@@ -32,23 +38,55 @@ export default function JustificarRelacion() {
     }
   }, [router]);
 
-  const canSave = justification.trim().length > 0;
+  const canSave = justification.trim().length >= 10 && !saving;
 
-  const handleSave = () => {
-    if (canSave && selectedEURACE && selectedRA) {
-      // Aquí guardarías la relación en el backend
-      console.log('Guardando relación:', {
-        euraceCode: selectedEURACE.code,
-        raCode: selectedRA.code,
-        justification: justification
+  const handleSave = async () => {
+    if (!canSave || !selectedEURACE || !selectedRA) return;
+
+    try {
+      setSaving(true);
+      setError(null);
+
+      // Crear la relación usando el servicio de mappings
+      const result = await MappingsService.createEurAceMapping({
+        resultadoAprendizajeId: selectedRA.id!,
+        eurAceId: selectedEURACE.id!,
+        justificacion: justification.trim()
       });
-      
-      // Limpiar localStorage
-      localStorage.removeItem('selectedEURACE');
-      localStorage.removeItem('selectedRA');
-      
-      // Redirigir de vuelta a la matriz
-      router.push('/mapeos/ra-vs-eurace');
+
+      if (result.success) {
+        // Limpiar localStorage
+        localStorage.removeItem('selectedEURACE');
+        localStorage.removeItem('selectedRA');
+        
+        // Mostrar notificación de éxito
+        NotificationService.success(
+          'Relación creada exitosamente',
+          `Se ha establecido la relación entre ${selectedRA.codigo} y ${selectedEURACE.codigo}`
+        );
+        
+        // Recargar datos de la matriz si está disponible
+        if ((window as any).reloadEurAceMatrix) {
+          (window as any).reloadEurAceMatrix();
+        }
+        
+        // Redirigir de vuelta a la matriz
+        router.push('/mapeos/ra-vs-eurace');
+      } else {
+        // Mostrar error como notificación, no crash
+        NotificationService.error(
+          'Error al crear la relación',
+          result.error || 'Error desconocido al crear la relación'
+        );
+      }
+    } catch (error) {
+      console.error('Error inesperado:', error);
+      NotificationService.error(
+        'Error de conexión',
+        'Error de conexión con el servidor'
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -107,23 +145,30 @@ export default function JustificarRelacion() {
             <div className="space-y-3">
               {selectedEURACE && (
                 <div>
-                  <h3 className="text-sm font-semibold text-[#171A1F] mb-1 font-open-sans">Criterio EUR-ACE ({selectedEURACE.code}):</h3>
+                  <h3 className="text-sm font-semibold text-[#171A1F] mb-1 font-open-sans">Criterio EUR-ACE ({selectedEURACE.codigo}):</h3>
                   <p className="text-sm text-[#565D6D] font-open-sans">
-                    {selectedEURACE.description}
+                    {selectedEURACE.descripcion}
                   </p>
                 </div>
               )}
 
               {selectedRA && (
                 <div>
-                  <h3 className="text-sm font-semibold text-[#171A1F] mb-1 font-open-sans">Resultado de aprendizaje ({selectedRA.code}):</h3>
+                  <h3 className="text-sm font-semibold text-[#171A1F] mb-1 font-open-sans">Resultado de aprendizaje ({selectedRA.codigo}):</h3>
                   <p className="text-sm text-[#565D6D] font-open-sans">
-                    {selectedRA.description}
+                    {selectedRA.descripcion}
                   </p>
                 </div>
               )}
             </div>
           </div>
+
+          {/* Error State */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-red-700 font-open-sans">{error}</p>
+            </div>
+          )}
 
           {/* Justification Section */}
           <div className="space-y-4">
@@ -135,7 +180,8 @@ export default function JustificarRelacion() {
                 value={justification}
                 onChange={(e) => setJustification(e.target.value)}
                 placeholder="Escriba la justificación detallada aquí para la relación entre el Resultado de Aprendizaje y el Criterio EUR-ACE seleccionados."
-                className="w-full h-32 px-4 py-3 border border-[#DEE1E6] rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-[#003366]/20 focus:border-[#003366] font-open-sans text-sm"
+                disabled={saving}
+                className="w-full h-32 px-4 py-3 border border-[#DEE1E6] rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-[#003366]/20 focus:border-[#003366] font-open-sans text-sm disabled:bg-gray-50 disabled:cursor-not-allowed"
               />
               <p className="text-xs text-[#565D6D] mt-1 font-open-sans">
                 Mínimo 10 caracteres ({justification.length}/10)
@@ -192,8 +238,17 @@ export default function JustificarRelacion() {
                   : 'bg-gray-300 text-white cursor-not-allowed'
               }`}
             >
-              <Save className="w-4 h-4" />
-              Guardar
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Guardar
+                </>
+              )}
             </button>
           </div>
         </div>

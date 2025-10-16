@@ -4,8 +4,9 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import AcademicRoute from "@/components/AcademicRoute";
-import { Search, ChevronLeft, ChevronRight, Filter, X, Save } from "lucide-react";
-import { raList, type RA, type OPP } from "@/lib/mockData";
+import { Search, ChevronLeft, ChevronRight, Filter, X, Save, Loader2 } from "lucide-react";
+import { LearningOutcomesService, type LearningOutcome } from "@/lib/learning-outcomes";
+import { type ProgramObjective } from "@/lib/program-objectives";
 
 const ITEMS_PER_PAGE = 5;
 
@@ -13,9 +14,12 @@ export default function SeleccionRA() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedRA, setSelectedRA] = useState<RA | null>(null);
-  const [selectedOPP, setSelectedOPP] = useState<OPP | null>(null);
-  const [filterType, setFilterType] = useState<'all' | 'RG' | 'RE'>('all');
+  const [selectedRA, setSelectedRA] = useState<LearningOutcome | null>(null);
+  const [selectedOPP, setSelectedOPP] = useState<ProgramObjective | null>(null);
+  const [filterType, setFilterType] = useState<'all' | 'GENERAL' | 'ESPECIFICO'>('all');
+  const [raList, setRaList] = useState<LearningOutcome[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Cargar el OPP seleccionado del paso anterior
   useEffect(() => {
@@ -28,20 +32,39 @@ export default function SeleccionRA() {
     }
   }, [router]);
 
+  // Cargar datos reales del backend
+  useEffect(() => {
+    const loadRAData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await LearningOutcomesService.getLearningOutcomes();
+        setRaList(data);
+      } catch (error) {
+        console.error('Error cargando RAs:', error);
+        setError('Error al cargar los resultados de aprendizaje. Intente nuevamente.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadRAData();
+  }, []);
+
   const filteredRAs = useMemo(() => {
     return raList.filter(ra => {
-      const matchesSearch = ra.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           (ra.description && ra.description.toLowerCase().includes(searchTerm.toLowerCase()));
-      const matchesFilter = filterType === 'all' || ra.type === filterType;
+      const matchesSearch = ra.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           (ra.descripcion && ra.descripcion.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesFilter = filterType === 'all' || ra.tipo === filterType;
       return matchesSearch && matchesFilter;
     });
-  }, [searchTerm, filterType]);
+  }, [searchTerm, filterType, raList]);
 
   const totalPages = Math.ceil(filteredRAs.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedRAs = filteredRAs.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  const handleSelectRA = (ra: RA) => {
+  const handleSelectRA = (ra: LearningOutcome) => {
     setSelectedRA(ra);
   };
 
@@ -106,7 +129,8 @@ export default function SeleccionRA() {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-10 pr-4 py-2 border border-[#DEE1E6] rounded-md focus:outline-none focus:ring-2 focus:ring-[#003366]/20 focus:border-[#003366] font-open-sans text-sm"
+                disabled={loading}
+                className="w-full pl-10 pr-4 py-2 border border-[#DEE1E6] rounded-md focus:outline-none focus:ring-2 focus:ring-[#003366]/20 focus:border-[#003366] font-open-sans text-sm disabled:bg-gray-50 disabled:cursor-not-allowed"
               />
             </div>
             
@@ -114,18 +138,32 @@ export default function SeleccionRA() {
               <select
                 value={filterType}
                 onChange={(e) => {
-                  setFilterType(e.target.value as 'all' | 'RG' | 'RE');
+                  setFilterType(e.target.value as 'all' | 'GENERAL' | 'ESPECIFICO');
                   setCurrentPage(1);
                 }}
-                className="appearance-none pl-3 pr-8 py-2 border border-[#DEE1E6] rounded-md focus:outline-none focus:ring-2 focus:ring-[#003366]/20 focus:border-[#003366] font-open-sans text-sm bg-white"
+                disabled={loading}
+                className="appearance-none pl-3 pr-8 py-2 border border-[#DEE1E6] rounded-md focus:outline-none focus:ring-2 focus:ring-[#003366]/20 focus:border-[#003366] font-open-sans text-sm bg-white disabled:bg-gray-50 disabled:cursor-not-allowed"
               >
                 <option value="all">Todos los tipos</option>
-                <option value="RG">Resultados Generales (RG)</option>
-                <option value="RE">Resultados Específicos (RE)</option>
+                <option value="GENERAL">Resultados Generales (RG)</option>
+                <option value="ESPECIFICO">Resultados Específicos (RE)</option>
               </select>
               <Filter className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#565D6D] pointer-events-none" />
             </div>
           </div>
+
+          {/* Error State */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-red-700 font-open-sans">{error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-2 text-red-600 hover:text-red-800 underline font-open-sans text-sm"
+              >
+                Reintentar
+              </button>
+            </div>
+          )}
 
           {/* Table */}
           <div className="bg-white rounded-lg border border-[#DEE1E6] shadow-sm overflow-hidden">
@@ -137,20 +175,42 @@ export default function SeleccionRA() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#DEE1E6]">
-                {paginatedRAs.map((ra) => (
-                  <tr 
-                    key={ra.code} 
-                    className={`hover:bg-[#F3F4F6] cursor-pointer transition-colors ${
-                      selectedRA?.code === ra.code ? 'bg-[#E6F3FF]' : ''
-                    }`}
-                    onClick={() => handleSelectRA(ra)}
-                  >
-                    <td className="px-7 py-4">
-                      <span className="font-semibold text-[#171A1F] font-open-sans">{ra.code}</span>
+                {loading ? (
+                  <tr>
+                    <td colSpan={2} className="px-7 py-8 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin text-[#003366]" />
+                        <span className="text-[#565D6D] font-open-sans">Cargando resultados de aprendizaje...</span>
+                      </div>
                     </td>
-                    <td className="px-20 py-4 text-[#565D6D] font-open-sans">{ra.description}</td>
                   </tr>
-                ))}
+                ) : paginatedRAs.length === 0 ? (
+                  <tr>
+                    <td colSpan={2} className="px-7 py-8 text-center">
+                      <span className="text-[#565D6D] font-open-sans">
+                        {searchTerm || filterType !== 'all' 
+                          ? 'No se encontraron resultados de aprendizaje que coincidan con los filtros' 
+                          : 'No hay resultados de aprendizaje disponibles'
+                        }
+                      </span>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedRAs.map((ra) => (
+                    <tr 
+                      key={ra.codigo}
+                      className={`hover:bg-[#F3F4F6] cursor-pointer transition-colors ${
+                        selectedRA?.codigo === ra.codigo ? 'bg-[#E6F3FF]' : ''
+                      }`}
+                      onClick={() => handleSelectRA(ra)}
+                    >
+                      <td className="px-7 py-4">
+                        <span className="font-semibold text-[#171A1F] font-open-sans">{ra.codigo}</span>
+                      </td>
+                      <td className="px-20 py-4 text-[#565D6D] font-open-sans">{ra.descripcion}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
 
@@ -203,9 +263,9 @@ export default function SeleccionRA() {
             </button>
             <button 
               onClick={handleNext}
-              disabled={!selectedRA}
+              disabled={!selectedRA || loading}
               className={`flex items-center gap-2 px-6 py-2 rounded-md transition-colors font-open-sans text-sm ${
-                selectedRA
+                selectedRA && !loading
                   ? 'bg-[#003366] text-white hover:bg-[#003366]/90'
                   : 'bg-gray-300 text-white cursor-not-allowed'
               }`}

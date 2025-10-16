@@ -3,21 +3,32 @@
 import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { Plus, Search, Edit2, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, Edit2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProgramObjective, ProgramObjectivesService } from "@/lib/program-objectives";
 import { UserCareerService } from "@/lib/user-career";
 import NotificationService from "@/lib/notifications";
 import NewProgramObjectiveModal from "@/components/NewProgramObjectiveModal";
+import Pagination from "@/components/Pagination";
 
 export default function ObjetivosCarrera() {
   const [searchTerm, setSearchTerm] = useState("");
   const [objectives, setObjectives] = useState<ProgramObjective[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   
   const canCreateObjectives = UserCareerService.canCreateProgramObjectives();
+
+  // Configuración de paginación
+  const itemsPerPage = 5;
+
+  // Resetear página cuando cambie el filtro
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
 
   // Cargar objetivos al montar el componente
   useEffect(() => {
@@ -63,6 +74,12 @@ export default function ObjetivosCarrera() {
     objetivo.descripcion.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Configuración de paginación
+  const totalPages = Math.ceil(filteredObjectives.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentObjectives = filteredObjectives.slice(startIndex, endIndex);
+
   return (
     <ProtectedRoute>
       <Layout>
@@ -89,7 +106,7 @@ export default function ObjetivosCarrera() {
                 type="text"
                 placeholder="Buscar por código o descripción..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 className="pl-10 border-[#DEE1E6]"
               />
             </div>
@@ -118,24 +135,24 @@ export default function ObjetivosCarrera() {
                         Cargando objetivos...
                       </td>
                     </tr>
-                  ) : filteredObjectives.length === 0 ? (
+                  ) : currentObjectives.length === 0 ? (
                     <tr>
                       <td colSpan={3} className="px-4 py-8 text-center text-[#565D6D] font-['Open_Sans']">
                         {searchTerm ? 'No se encontraron objetivos que coincidan con la búsqueda' : 'No hay objetivos registrados'}
                       </td>
                     </tr>
                   ) : (
-                    filteredObjectives.map((objetivo) => (
+                    currentObjectives.map((objetivo) => (
                       <tr key={objetivo.id} className="border-b border-[#DEE1E6] last:border-0">
-                        <td className="px-7 py-6">
+                        <td className="px-7 py-8">
                           <span className="text-sm font-semibold text-[#171A1F] font-['Open_Sans']">
                             {objetivo.codigo}
                           </span>
                         </td>
-                        <td className="px-5 py-6">
+                        <td className="px-5 py-8">
                           <span className="text-sm text-[#565D6D]">{objetivo.descripcion}</span>
                         </td>
-                        <td className="px-6 py-6">
+                        <td className="px-6 py-8">
                           <div className="flex items-center justify-center gap-2">
                             <Button
                               variant="ghost"
@@ -161,25 +178,12 @@ export default function ObjetivosCarrera() {
             </div>
           </div>
 
-          <div className="mt-8 flex items-center justify-center gap-4">
-            <button className="flex items-center gap-1 text-sm text-[#171A1F] hover:text-[#003366] font-['Open_Sans']">
-              <ChevronLeft className="w-4 h-4" />
-              Previous
-            </button>
-            <button className="w-8 h-8 text-sm text-[#171A1F] hover:bg-gray-100 rounded font-['Open_Sans']">
-              1
-            </button>
-            <button className="w-8 h-8 text-sm text-[#171A1F] hover:bg-gray-100 rounded font-['Open_Sans']">
-              2
-            </button>
-            <button className="w-8 h-8 text-sm text-[#171A1F] hover:bg-gray-100 rounded font-['Open_Sans']">
-              3
-            </button>
-            <button className="flex items-center gap-1 text-sm text-[#171A1F] hover:text-[#003366] font-['Open_Sans']">
-              Next
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            className="mt-8"
+          />
 
           {/* Modal para crear objetivo */}
           <NewProgramObjectiveModal

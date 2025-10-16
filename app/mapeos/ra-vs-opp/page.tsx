@@ -4,28 +4,31 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import AcademicRoute from "@/components/AcademicRoute";
-import { Plus, Info } from "lucide-react";
+import CreateMappingModal from "@/components/CreateMappingModal";
+import { Plus, Info, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LearningOutcome, LearningOutcomesService } from "@/lib/learning-outcomes";
 import { ProgramObjective, ProgramObjectivesService } from "@/lib/program-objectives";
-import { initialRelationships, type Relationship } from "@/lib/matrixData";
+import { MappingsService, type MappingResponse, type OppRaMapping } from "@/lib/mappings";
 import { Tooltip } from "@/components/ui/tooltip";
 
 // Interfaces para los datos dinámicos
 interface MatrixRA {
+  id: number;
   code: string;
   description: string;
   type: 'GENERAL' | 'ESPECIFICO';
 }
 
 interface MatrixOPP {
+  id: number;
   code: string;
   description: string;
 }
 
 export default function MatrizRAvsOPP() {
   const router = useRouter();
-  const [relationships, setRelationships] = useState<Relationship[]>(initialRelationships);
+  const [mappings, setMappings] = useState<MappingResponse[]>([]);
   const [scrollX, setScrollX] = useState(0);
   const [scrollY, setScrollY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -38,10 +41,39 @@ export default function MatrizRAvsOPP() {
   const [oppList, setOppList] = useState<MatrixOPP[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Estados para el modal de creación de mapeo
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedMapping, setSelectedMapping] = useState<{
+    raId: number;
+    raCode: string;
+    raDescription: string;
+    oppId: number;
+    oppCode: string;
+    oppDescription: string;
+  } | null>(null);
+
   // Cargar datos del backend
   useEffect(() => {
     loadMatrixData();
   }, []);
+
+  // Función para recargar datos (llamar después de crear relaciones)
+  const reloadData = useCallback(async () => {
+    try {
+      const existingMappings = await MappingsService.getOppRaMappings();
+      setMappings(existingMappings);
+    } catch (error) {
+      console.error('Error recargando mappings:', error);
+    }
+  }, []);
+
+  // Exponer función de recarga globalmente
+  useEffect(() => {
+    (window as any).reloadOppRaMatrix = reloadData;
+    return () => {
+      delete (window as any).reloadOppRaMatrix;
+    };
+  }, [reloadData]);
 
   const loadMatrixData = async () => {
     try {
@@ -51,6 +83,7 @@ export default function MatrizRAvsOPP() {
       const learningOutcomes = await LearningOutcomesService.getLearningOutcomes();
       const raData: MatrixRA[] = learningOutcomes
         .map((ra: LearningOutcome) => ({
+          id: ra.id!,
           code: ra.codigo,
           description: ra.descripcion,
           type: ra.tipo
@@ -66,6 +99,7 @@ export default function MatrizRAvsOPP() {
       const programObjectives = await ProgramObjectivesService.getProgramObjectives();
       const oppData: MatrixOPP[] = programObjectives
         .map((opp: ProgramObjective) => ({
+          id: opp.id!,
           code: opp.codigo,
           description: opp.descripcion
         }))
@@ -73,11 +107,16 @@ export default function MatrizRAvsOPP() {
 
       setRaList(raData);
       setOppList(oppData);
+      
+      // Cargar mappings existentes
+      const existingMappings = await MappingsService.getOppRaMappings();
+      setMappings(existingMappings);
     } catch (error) {
       console.error('Error cargando datos de la matriz:', error);
       // En caso de error, usar listas vacías
       setRaList([]);
       setOppList([]);
+      setMappings([]);
     } finally {
       setIsLoading(false);
     }
@@ -95,7 +134,60 @@ export default function MatrizRAvsOPP() {
   const maxScrollY = Math.max(0, (oppList.length - VISIBLE_ROWS) * CELL_HEIGHT);
 
   const hasRelationship = (oppCode: string, raCode: string) => {
-    return relationships.some(rel => rel.oppCode === oppCode && rel.raCode === raCode);
+    // Buscar los IDs correspondientes
+    const matchingOpp = oppList.find(opp => opp.code === oppCode);
+    const matchingRa = raList.find(ra => ra.code === raCode);
+    
+    if (!matchingOpp || !matchingRa) return false;
+    
+    // Verificar si existe una relación entre estos IDs
+    return mappings.some(mapping => 
+      mapping.oppId === matchingOpp.id && 
+      mapping.resultadoAprendizajeId === matchingRa.id
+    );
+  };
+
+  // Función para manejar el clic en una celda
+  const handleCellClick = (oppCode: string, raCode: string) => {
+    // Solo permitir clic en celdas vacías
+    if (hasRelationship(oppCode, raCode)) {
+      return;
+    }
+
+    const ra = raList.find(r => r.code === raCode);
+    const opp = oppList.find(o => o.code === oppCode);
+
+    if (ra && opp) {
+      setSelectedMapping({
+        raId: ra.id,
+        raCode: ra.code,
+        raDescription: ra.description,
+        oppId: opp.id,
+        oppCode: opp.code,
+        oppDescription: opp.description
+      });
+      setIsModalOpen(true);
+    }
+  };
+
+  // Función para crear un nuevo mapeo
+  const handleCreateMapping = async (justification: string) => {
+    if (!selectedMapping) {
+      throw new Error('No hay mapping seleccionado');
+    }
+
+    const result = await MappingsService.createOppRaMapping({
+      resultadoAprendizajeId: selectedMapping.raId,
+      oppId: selectedMapping.oppId,
+      justificacion: justification
+    });
+
+    if (!result.success) {
+      throw new Error(result.error || 'Error al crear el mapping');
+    }
+
+    // Recargar los datos
+    await reloadData();
   };
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -206,13 +298,18 @@ export default function MatrizRAvsOPP() {
                   raList.map((ra: MatrixRA, colIndex: number) => (
                     <div 
                       key={`${opp.code}-${ra.code}`}
-                      className="absolute bg-white rounded border border-gray-200 flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors"
+                      className={`absolute bg-white rounded border border-gray-200 flex items-center justify-center transition-colors ${
+                        hasRelationship(opp.code, ra.code) 
+                          ? 'cursor-default' 
+                          : 'cursor-pointer hover:bg-blue-50 hover:border-blue-300'
+                      }`}
                       style={{
                         left: colIndex * CELL_WIDTH,
                         top: rowIndex * CELL_HEIGHT,
                         width: CELL_WIDTH - 2,
                         height: CELL_HEIGHT - 2
                       }}
+                      onClick={() => handleCellClick(opp.code, ra.code)}
                     >
                       {hasRelationship(opp.code, ra.code) && (
                         <div className="absolute inset-0 bg-emerald-500/50 hover:bg-emerald-500/70 rounded flex items-center justify-center transition-colors">
@@ -315,6 +412,19 @@ export default function MatrizRAvsOPP() {
           </div>
           )}
         </div>
+
+        {/* Modal para crear mapeo */}
+        {selectedMapping && (
+          <CreateMappingModal
+            isOpen={isModalOpen}
+            onClose={() => {
+              setIsModalOpen(false);
+              setSelectedMapping(null);
+            }}
+            onSave={handleCreateMapping}
+            mappingType="OPP-RA"
+          />
+        )}
       </Layout>
     </AcademicRoute>
   );

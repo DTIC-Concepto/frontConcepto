@@ -4,15 +4,20 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import AcademicRoute from "@/components/AcademicRoute";
-import { X, Save, ChevronLeft, ChevronRight } from "lucide-react";
-import { type OPP, type RA } from "@/lib/mockData";
+import { X, Save, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { type ProgramObjective } from "@/lib/program-objectives";
+import { type LearningOutcome } from "@/lib/learning-outcomes";
+import { MappingsService } from "@/lib/mappings";
+import NotificationService from "@/lib/notifications";
 
 export default function JustificarRelacion() {
   const router = useRouter();
-  const [selectedOPP, setSelectedOPP] = useState<OPP | null>(null);
-  const [selectedRA, setSelectedRA] = useState<RA | null>(null);
+  const [selectedOPP, setSelectedOPP] = useState<ProgramObjective | null>(null);
+  const [selectedRA, setSelectedRA] = useState<LearningOutcome | null>(null);
   const [justification, setJustification] = useState('');
   const [currentStep, setCurrentStep] = useState(3);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Cargar las selecciones de los pasos anteriores
   useEffect(() => {
@@ -33,23 +38,55 @@ export default function JustificarRelacion() {
     }
   }, [router]);
 
-  const canSave = justification.trim().length > 0;
+  const canSave = justification.trim().length >= 10 && !saving;
 
-  const handleSave = () => {
-    if (canSave && selectedOPP && selectedRA) {
-      // Aquí guardarías la relación en el backend
-      console.log('Guardando relación:', {
-        oppCode: selectedOPP.code,
-        raCode: selectedRA.code,
-        justification: justification
+  const handleSave = async () => {
+    if (!canSave || !selectedOPP || !selectedRA) return;
+
+    try {
+      setSaving(true);
+      setError(null);
+
+      // Crear la relación usando el servicio de mappings
+      const result = await MappingsService.createOppRaMapping({
+        resultadoAprendizajeId: selectedRA.id!,
+        oppId: selectedOPP.id!,
+        justificacion: justification.trim()
       });
-      
-      // Limpiar localStorage
-      localStorage.removeItem('selectedOPP');
-      localStorage.removeItem('selectedRA');
-      
-      // Redirigir de vuelta a la matriz
-      router.push('/mapeos/ra-vs-opp');
+
+      if (result.success) {
+        // Limpiar localStorage
+        localStorage.removeItem('selectedOPP');
+        localStorage.removeItem('selectedRA');
+        
+        // Mostrar notificación de éxito
+        NotificationService.success(
+          'Relación creada exitosamente',
+          `Se ha establecido la relación entre ${selectedRA.codigo} y ${selectedOPP.codigo}`
+        );
+        
+        // Recargar datos de la matriz si está disponible
+        if ((window as any).reloadOppRaMatrix) {
+          (window as any).reloadOppRaMatrix();
+        }
+        
+        // Redirigir de vuelta a la matriz
+        router.push('/mapeos/ra-vs-opp');
+      } else {
+        // Mostrar error como notificación, no crash
+        NotificationService.error(
+          'Error al crear la relación',
+          result.error || 'Error desconocido al crear la relación'
+        );
+      }
+    } catch (error) {
+      console.error('Error inesperado:', error);
+      NotificationService.error(
+        'Error de conexión',
+        'Error de conexión con el servidor'
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -108,18 +145,18 @@ export default function JustificarRelacion() {
             <div className="space-y-3">
               {selectedOPP && (
                 <div>
-                  <h3 className="text-sm font-semibold text-[#171A1F] mb-1 font-open-sans">Objetivo de Carrera ({selectedOPP.code}):</h3>
+                  <h3 className="text-sm font-semibold text-[#171A1F] mb-1 font-open-sans">Objetivo de Carrera ({selectedOPP.codigo}):</h3>
                   <p className="text-sm text-[#565D6D] font-open-sans">
-                    {selectedOPP.description}
+                    {selectedOPP.descripcion}
                   </p>
                 </div>
               )}
 
               {selectedRA && (
                 <div>
-                  <h3 className="text-sm font-semibold text-[#171A1F] mb-1 font-open-sans">Resultado de aprendizaje de carrera ({selectedRA.code}):</h3>
+                  <h3 className="text-sm font-semibold text-[#171A1F] mb-1 font-open-sans">Resultado de aprendizaje de carrera ({selectedRA.codigo}):</h3>
                   <p className="text-sm text-[#565D6D] font-open-sans">
-                    {selectedRA.description}
+                    {selectedRA.descripcion}
                   </p>
                 </div>
               )}
@@ -130,13 +167,21 @@ export default function JustificarRelacion() {
           <div className="space-y-4">
             <h2 className="text-lg font-semibold text-[#171A1F] font-montserrat">Justifique la relación de OPP vs RA</h2>
 
+            {/* Error State */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-red-700 font-open-sans">{error}</p>
+              </div>
+            )}
+
             <div>
               <label className="block text-sm text-[#565D6D] mb-2 font-open-sans">Justificación:</label>
               <textarea
                 value={justification}
                 onChange={(e) => setJustification(e.target.value)}
                 placeholder="Escriba la justificación detallada aquí para la relación entre el Objetivo de Carrera y el Resultado de Aprendizaje seleccionados."
-                className="w-full h-32 px-4 py-3 border border-[#DEE1E6] rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-[#003366]/20 focus:border-[#003366] font-open-sans text-sm"
+                disabled={saving}
+                className="w-full h-32 px-4 py-3 border border-[#DEE1E6] rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-[#003366]/20 focus:border-[#003366] font-open-sans text-sm disabled:bg-gray-50 disabled:cursor-not-allowed"
               />
               <p className="text-xs text-[#565D6D] mt-1 font-open-sans">
                 Mínimo 10 caracteres ({justification.length}/10)
@@ -193,8 +238,17 @@ export default function JustificarRelacion() {
                   : 'bg-gray-300 text-white cursor-not-allowed'
               }`}
             >
-              <Save className="w-4 h-4" />
-              Guardar
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Guardar
+                </>
+              )}
             </button>
           </div>
         </div>

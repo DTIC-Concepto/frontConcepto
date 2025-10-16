@@ -1,42 +1,11 @@
-'use client'
+"use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import AcademicRoute from "@/components/AcademicRoute";
-import { Search, ChevronLeft, ChevronRight, X, Save } from "lucide-react";
-
-// Mock data para Criterios EUR-ACE
-const euraceList = [
-  { 
-    code: "EUR-ACE 1", 
-    description: "Conocimiento y comprensión de los fundamentos científicos y matemáticos que subyacen a su rama de la ingeniería."
-  },
-  { 
-    code: "EUR-ACE 2", 
-    description: "La capacidad de analizar productos, procesos y sistemas complejos de ingeniería dentro de su campo de estudio."
-  },
-  { 
-    code: "EUR-ACE 3", 
-    description: "La capacidad de diseñar productos, procesos y sistemas complejos de ingeniería que cumplan con los requisitos especificados."
-  },
-  { 
-    code: "EUR-ACE 4", 
-    description: "La capacidad de realizar búsquedas bibliográficas, diseñar y llevar a cabo experimentos."
-  },
-  { 
-    code: "EUR-ACE 5", 
-    description: "Competencias técnicas y de laboratorio y la capacidad de aplicar métodos prácticos para resolver problemas complejos de ingeniería."
-  },
-  { 
-    code: "EUR-ACE 6", 
-    description: "La capacidad de seleccionar y aplicar métodos analíticos y de modelización apropiados."
-  },
-  { 
-    code: "EUR-ACE 7", 
-    description: "Comprensión de las técnicas aplicables y sus limitaciones en el ámbito de su especialidad."
-  }
-]
+import { Search, ChevronLeft, ChevronRight, X, Save, Loader2 } from "lucide-react";
+import { EurAceCriteriaService, type EurAceCriterion } from "@/lib/eur-ace-criteria";
 
 const ITEMS_PER_PAGE = 5;
 
@@ -44,21 +13,43 @@ export default function SeleccionEURACE() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedEURACE, setSelectedEURACE] = useState<any | null>(null);
+  const [selectedEURACE, setSelectedEURACE] = useState<EurAceCriterion | null>(null);
+  const [eurAceList, setEurAceList] = useState<EurAceCriterion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Cargar datos reales del backend
+  useEffect(() => {
+    const loadEurAceData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await EurAceCriteriaService.getEurAceCriteria();
+        setEurAceList(data);
+      } catch (error) {
+        console.error('Error cargando criterios EUR-ACE:', error);
+        setError('Error al cargar los criterios EUR-ACE. Intente nuevamente.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadEurAceData();
+  }, []);
 
   const filteredEURACE = useMemo(() => {
-    return euraceList.filter(
+    return eurAceList.filter(
       (eurace) =>
-        eurace.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        eurace.description.toLowerCase().includes(searchTerm.toLowerCase())
+        eurace.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        eurace.descripcion.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [searchTerm]);
+  }, [searchTerm, eurAceList]);
 
   const totalPages = Math.ceil(filteredEURACE.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedEURACE = filteredEURACE.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  const handleSelectEURACE = (eurace: any) => {
+  const handleSelectEURACE = (eurace: EurAceCriterion) => {
     setSelectedEURACE(eurace);
   };
 
@@ -123,10 +114,24 @@ export default function SeleccionEURACE() {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-10 pr-4 py-2 border border-[#DEE1E6] rounded-md focus:outline-none focus:ring-2 focus:ring-[#003366]/20 focus:border-[#003366] font-open-sans text-sm"
+                disabled={loading}
+                className="w-full pl-10 pr-4 py-2 border border-[#DEE1E6] rounded-md focus:outline-none focus:ring-2 focus:ring-[#003366]/20 focus:border-[#003366] font-open-sans text-sm disabled:bg-gray-50 disabled:cursor-not-allowed"
               />
             </div>
           </div>
+
+          {/* Error State */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-red-700 font-open-sans">{error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-2 text-red-600 hover:text-red-800 underline font-open-sans text-sm"
+              >
+                Reintentar
+              </button>
+            </div>
+          )}
 
           {/* Table */}
           <div className="bg-white rounded-lg border border-[#DEE1E6] shadow-sm overflow-hidden">
@@ -138,25 +143,45 @@ export default function SeleccionEURACE() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#DEE1E6]">
-                {paginatedEURACE.map((eurace) => (
-                  <tr 
-                    key={eurace.code} 
-                    className={`hover:bg-[#F3F4F6] cursor-pointer transition-colors ${
-                      selectedEURACE?.code === eurace.code ? 'bg-[#E6F3FF]' : ''
-                    }`}
-                    onClick={() => handleSelectEURACE(eurace)}
-                  >
-                    <td className="px-7 py-4">
-                      <span className="font-semibold text-[#171A1F] font-open-sans">{eurace.code}</span>
+                {loading ? (
+                  <tr>
+                    <td colSpan={2} className="px-7 py-8 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin text-[#003366]" />
+                        <span className="text-[#565D6D] font-open-sans">Cargando criterios EUR-ACE...</span>
+                      </div>
                     </td>
-                    <td className="px-20 py-4 text-[#565D6D] font-open-sans">{eurace.description}</td>
                   </tr>
-                ))}
+                ) : paginatedEURACE.length === 0 ? (
+                  <tr>
+                    <td colSpan={2} className="px-7 py-8 text-center">
+                      <span className="text-[#565D6D] font-open-sans">
+                        {searchTerm ? 'No se encontraron criterios EUR-ACE que coincidan con la búsqueda' : 'No hay criterios EUR-ACE disponibles'}
+                      </span>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedEURACE.map((eurace) => (
+                    <tr 
+                      key={eurace.codigo}
+                      className={`hover:bg-[#F3F4F6] cursor-pointer transition-colors ${
+                        selectedEURACE?.codigo === eurace.codigo ? 'bg-[#E6F3FF]' : ''
+                      }`}
+                      onClick={() => handleSelectEURACE(eurace)}
+                    >
+                      <td className="px-7 py-4">
+                        <span className="font-semibold text-[#171A1F] font-open-sans">{eurace.codigo}</span>
+                      </td>
+                      <td className="px-20 py-4 text-[#565D6D] font-open-sans">{eurace.descripcion}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
 
-            {/* Pagination */}
-            <div className="border-t border-[#DEE1E6] px-6 py-4 flex items-center justify-center gap-4">
+            {/* Pagination - solo mostrar si hay más de ITEMS_PER_PAGE elementos */}
+            {!loading && filteredEURACE.length > ITEMS_PER_PAGE && (
+              <div className="border-t border-[#DEE1E6] px-6 py-4 flex items-center justify-center gap-4">
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
@@ -190,7 +215,8 @@ export default function SeleccionEURACE() {
                 <span>Next</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}
@@ -204,9 +230,9 @@ export default function SeleccionEURACE() {
             </button>
             <button 
               onClick={handleNext}
-              disabled={!selectedEURACE}
+              disabled={!selectedEURACE || loading}
               className={`flex items-center gap-2 px-6 py-2 rounded-md transition-colors font-open-sans text-sm ${
-                selectedEURACE
+                selectedEURACE && !loading
                   ? 'bg-[#003366] text-white hover:bg-[#003366]/90'
                   : 'bg-gray-300 text-white cursor-not-allowed'
               }`}

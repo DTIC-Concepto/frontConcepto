@@ -4,28 +4,31 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import AcademicRoute from "@/components/AcademicRoute";
-import { Plus, Info } from "lucide-react";
+import CreateMappingModal from "@/components/CreateMappingModal";
+import { Plus, Info, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LearningOutcome, LearningOutcomesService } from "@/lib/learning-outcomes";
 import { EurAceCriterion, EurAceCriteriaService } from "@/lib/eur-ace-criteria";
-import { initialRAvsEURACERelationships, type RAvsEURACERelationship } from "@/lib/matrixData";
+import { MappingsService, type MappingResponse, type EurAceMapping } from "@/lib/mappings";
 import { Tooltip } from "@/components/ui/tooltip";
 
 // Interfaces para los datos dinámicos
 interface MatrixRA {
+  id: number;
   code: string;
   description: string;
   type: 'GENERAL' | 'ESPECIFICO';
 }
 
 interface MatrixEURACE {
+  id: number;
   code: string;
   description: string;
 }
 
 export default function MatrizRAvsEURACE() {
   const router = useRouter();
-  const [relationships, setRelationships] = useState<RAvsEURACERelationship[]>(initialRAvsEURACERelationships);
+  const [mappings, setMappings] = useState<MappingResponse[]>([]);
   const [scrollX, setScrollX] = useState(0);
   const [scrollY, setScrollY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -38,12 +41,45 @@ export default function MatrizRAvsEURACE() {
   const [euraceList, setEuraceList] = useState<MatrixEURACE[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Estado para carreraId - actualmente hardcodeado a 1, pero fácil de cambiar
+  // TODO: Obtener carreraId desde el contexto de usuario o props
+  const [carreraId, setCarreraId] = useState<number>(1);
+
+  // Estados para el modal de creación de mapeo
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedMapping, setSelectedMapping] = useState<{
+    raId: number;
+    raCode: string;
+    raDescription: string;
+    eurAceId: number;
+    eurAceCode: string;
+    eurAceDescription: string;
+  } | null>(null);
+
   // Cargar datos del backend
   useEffect(() => {
     loadMatrixData();
-  }, []);
+  }, [carreraId]); // Recargar cuando cambie la carreraId
 
-  const loadMatrixData = async () => {
+  // Función para recargar datos (llamar después de crear relaciones)
+  const reloadData = useCallback(async () => {
+    try {
+      const existingMappings = await MappingsService.getEurAceMappings(carreraId);
+      setMappings(existingMappings);
+    } catch (error) {
+      console.error('Error recargando mappings:', error);
+    }
+  }, [carreraId]);
+
+  // Exponer función de recarga globalmente
+  useEffect(() => {
+    (window as any).reloadEurAceMatrix = reloadData;
+    return () => {
+      delete (window as any).reloadEurAceMatrix;
+    };
+  }, [reloadData]);
+
+  const loadMatrixData = useCallback(async () => {
     try {
       setIsLoading(true);
       
@@ -51,6 +87,7 @@ export default function MatrizRAvsEURACE() {
       const learningOutcomes = await LearningOutcomesService.getLearningOutcomes();
       const raData: MatrixRA[] = learningOutcomes
         .map((ra: LearningOutcome) => ({
+          id: ra.id!,
           code: ra.codigo,
           description: ra.descripcion,
           type: ra.tipo
@@ -66,6 +103,7 @@ export default function MatrizRAvsEURACE() {
       const eurAceCriteria = await EurAceCriteriaService.getEurAceCriteria();
       const euraceData: MatrixEURACE[] = eurAceCriteria
         .map((eurace: EurAceCriterion) => ({
+          id: eurace.id!,
           code: eurace.codigo,
           description: eurace.descripcion
         }))
@@ -73,15 +111,20 @@ export default function MatrizRAvsEURACE() {
 
       setRaList(raData);
       setEuraceList(euraceData);
+      
+      // Cargar mappings existentes usando la carreraId del estado
+      const existingMappings = await MappingsService.getEurAceMappings(carreraId);
+      setMappings(existingMappings);
     } catch (error) {
       console.error('Error cargando datos de la matriz:', error);
       // En caso de error, usar listas vacías
       setRaList([]);
       setEuraceList([]);
+      setMappings([]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [carreraId]);
 
   // Configuración de la tabla - altura aumentada para EUR-ACE
   const CELL_WIDTH = 140;
@@ -95,7 +138,76 @@ export default function MatrizRAvsEURACE() {
   const maxScrollY = Math.max(0, (euraceList.length - VISIBLE_ROWS) * CELL_HEIGHT);
 
   const hasRelationship = (euraceCode: string, raCode: string) => {
-    return relationships.some(rel => rel.euraceCode === euraceCode && rel.raCode === raCode);
+    // Buscar los IDs correspondientes
+    const matchingEurace = euraceList.find(eurace => eurace.code === euraceCode);
+    const matchingRa = raList.find(ra => ra.code === raCode);
+    
+    if (!matchingEurace || !matchingRa) return false;
+    
+    // Verificar que mappings sea un array antes de usar .some()
+    if (!Array.isArray(mappings)) {
+      console.warn('Mappings no es un array:', mappings);
+      return false;
+    }
+    
+    // Verificar si existe una relación entre estos IDs
+    // Funciona tanto con la estructura original (raId/eurAceId) como con la transformada (resultadoAprendizajeId/eurAceId)
+    const hasRelation = mappings.some(mapping => {
+      const mappingAny = mapping as any;
+      return mappingAny.eurAceId === matchingEurace.id && 
+             (mappingAny.resultadoAprendizajeId === matchingRa.id || mappingAny.raId === matchingRa.id);
+    });
+    
+    return hasRelation;
+  };
+
+  // Función para manejar el click en una celda vacía
+  const handleCellClick = (euraceCode: string, raCode: string) => {
+    // Solo permitir click si no hay relación existente
+    if (hasRelationship(euraceCode, raCode)) {
+      return;
+    }
+
+    // Buscar los datos completos
+    const matchingEurace = euraceList.find(eurace => eurace.code === euraceCode);
+    const matchingRa = raList.find(ra => ra.code === raCode);
+
+    if (!matchingEurace || !matchingRa) {
+      console.error('No se encontraron los datos para la relación');
+      return;
+    }
+
+    setSelectedMapping({
+      raId: matchingRa.id,
+      raCode: matchingRa.code,
+      raDescription: matchingRa.description,
+      eurAceId: matchingEurace.id,
+      eurAceCode: matchingEurace.code,
+      eurAceDescription: matchingEurace.description
+    });
+    setIsModalOpen(true);
+  };
+
+  // Función para crear un nuevo mapping
+  const handleCreateMapping = async (justification: string) => {
+    if (!selectedMapping) {
+      throw new Error('No hay mapping seleccionado');
+    }
+
+    const newMapping: EurAceMapping = {
+      resultadoAprendizajeId: selectedMapping.raId,
+      eurAceId: selectedMapping.eurAceId,
+      justificacion: justification
+    };
+
+    const result = await MappingsService.createEurAceMapping(newMapping);
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Error al crear el mapping');
+    }
+
+    // Recargar los datos
+    await reloadData();
   };
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -203,29 +315,38 @@ export default function MatrizRAvsEURACE() {
                 }}
               >
                 {euraceList.map((eurace: MatrixEURACE, rowIndex: number) => 
-                  raList.map((ra: MatrixRA, colIndex: number) => (
-                    <div 
-                      key={`${eurace.code}-${ra.code}`}
-                      className="absolute bg-white rounded border border-gray-200 flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors"
-                      style={{
-                        left: colIndex * CELL_WIDTH,
-                        top: rowIndex * CELL_HEIGHT,
-                        width: CELL_WIDTH - 2,
-                        height: CELL_HEIGHT - 2
-                      }}
-                    >
-                      {hasRelationship(eurace.code, ra.code) && (
-                        <div className="absolute inset-0 bg-emerald-500/50 hover:bg-emerald-500/70 rounded flex items-center justify-center transition-colors">
-                          <svg className="w-4 h-4 text-white" viewBox="0 0 16 16" fill="none">
-                            <path
-                              d="M12.8864 3.51118C13.148 3.24953 13.5721 3.24953 13.8337 3.51118C14.0955 3.77283 14.0955 4.19695 13.8337 4.4586L6.46377 11.8286C6.20212 12.0902 5.778 12.0902 5.51635 11.8286L2.16635 8.47859L2.12055 8.42754C1.90591 8.16443 1.92105 7.7765 2.16635 7.53121C2.41164 7.28586 2.79958 7.27072 3.06273 7.48538L3.11377 7.53121L5.99006 10.4075L12.8864 3.51118Z"
-                              fill="currentColor"
-                            />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                  ))
+                  raList.map((ra: MatrixRA, colIndex: number) => {
+                    const hasRelation = hasRelationship(eurace.code, ra.code);
+                    
+                    return (
+                      <div 
+                        key={`${eurace.code}-${ra.code}`}
+                        className={`absolute rounded border border-gray-200 flex items-center justify-center transition-colors ${
+                          hasRelation 
+                            ? 'bg-white cursor-default' 
+                            : 'bg-white cursor-pointer hover:bg-blue-50 hover:border-blue-300'
+                        }`}
+                        style={{
+                          left: colIndex * CELL_WIDTH,
+                          top: rowIndex * CELL_HEIGHT,
+                          width: CELL_WIDTH - 2,
+                          height: CELL_HEIGHT - 2
+                        }}
+                        onClick={() => !hasRelation && handleCellClick(eurace.code, ra.code)}
+                      >
+                        {hasRelation && (
+                          <div className="absolute inset-0 bg-emerald-500/50 hover:bg-emerald-500/70 rounded flex items-center justify-center transition-colors">
+                            <svg className="w-4 h-4 text-white" viewBox="0 0 16 16" fill="none">
+                              <path
+                                d="M12.8864 3.51118C13.148 3.24953 13.5721 3.24953 13.8337 3.51118C14.0955 3.77283 14.0955 4.19695 13.8337 4.4586L6.46377 11.8286C6.20212 12.0902 5.778 12.0902 5.51635 11.8286L2.16635 8.47859L2.12055 8.42754C1.90591 8.16443 1.92105 7.7765 2.16635 7.53121C2.41164 7.28586 2.79958 7.27072 3.06273 7.48538L3.11377 7.53121L5.99006 10.4075L12.8864 3.51118Z"
+                                fill="currentColor"
+                              />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
                 )}
               </div>
 
@@ -315,6 +436,19 @@ export default function MatrizRAvsEURACE() {
           </div>
           )}
         </div>
+
+        {/* Modal para crear mapeo */}
+        {selectedMapping && (
+          <CreateMappingModal
+            isOpen={isModalOpen}
+            onClose={() => {
+              setIsModalOpen(false);
+              setSelectedMapping(null);
+            }}
+            onSave={handleCreateMapping}
+            mappingType="EUR-ACE"
+          />
+        )}
       </Layout>
     </AcademicRoute>
   );

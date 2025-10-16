@@ -3,21 +3,32 @@
 import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { Search, ChevronLeft, ChevronRight, Edit2, Trash2, Plus } from "lucide-react";
+import { Search, Edit2, Trash2, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { EurAceCriterion, EurAceCriteriaService } from "@/lib/eur-ace-criteria";
 import { UserCareerService } from "@/lib/user-career";
 import NotificationService from "@/lib/notifications";
 import NewEurAceCriterionModal from "@/components/NewEurAceCriterionModal";
+import Pagination from "@/components/Pagination";
 
 export default function CriteriosEurAce() {
   const [searchTerm, setSearchTerm] = useState("");
   const [criteria, setCriteria] = useState<EurAceCriterion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const canCreateCriteria = UserCareerService.canCreateEurAceCriteria();
+
+  // Configuración de paginación
+  const itemsPerPage = 5;
+
+  // Resetear página cuando cambie el filtro
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
 
   // Cargar criterios al montar el componente
   useEffect(() => {
@@ -63,6 +74,12 @@ export default function CriteriosEurAce() {
     criterio.descripcion.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Configuración de paginación
+  const totalPages = Math.ceil(filteredCriteria.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentCriteria = filteredCriteria.slice(startIndex, endIndex);
+
   return (
     <ProtectedRoute>
       <Layout>
@@ -89,7 +106,7 @@ export default function CriteriosEurAce() {
                 type="text"
                 placeholder="Buscar por código o descripción..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 className="pl-10 border-[#DEE1E6]"
               />
             </div>
@@ -118,26 +135,26 @@ export default function CriteriosEurAce() {
                         Cargando criterios...
                       </td>
                     </tr>
-                  ) : filteredCriteria.length === 0 ? (
+                  ) : currentCriteria.length === 0 ? (
                     <tr>
                       <td colSpan={3} className="px-4 py-8 text-center text-[#565D6D] font-['Open_Sans']">
                         {searchTerm ? 'No se encontraron criterios que coincidan con la búsqueda' : 'No hay criterios registrados'}
                       </td>
                     </tr>
                   ) : (
-                    filteredCriteria.map((criterio) => (
+                    currentCriteria.map((criterio) => (
                       <tr key={criterio.id} className="border-b border-[#DEE1E6] last:border-0">
-                        <td className="px-7 py-6 align-top">
+                        <td className="px-7 py-8 align-top">
                           <span className="text-sm font-semibold text-[#171A1F] font-['Open_Sans']">
                             {criterio.codigo}
                           </span>
                         </td>
-                        <td className="px-5 py-6">
+                        <td className="px-5 py-8">
                           <span className="text-[13px] leading-normal text-black font-[Montserrat]">
                             {criterio.descripcion}
                           </span>
                         </td>
-                        <td className="px-6 py-6 text-center">
+                        <td className="px-6 py-8 text-center">
                           <div className="flex justify-center gap-3">
                             <button 
                               className="text-[#565D6D] hover:text-[#003366] transition-colors duration-200"
@@ -161,25 +178,12 @@ export default function CriteriosEurAce() {
             </div>
           </div>
 
-          <div className="mt-8 flex items-center justify-center gap-4">
-            <button className="flex items-center gap-1 text-sm text-[#171A1F] hover:text-[#003366] font-['Open_Sans']">
-              <ChevronLeft className="w-4 h-4" />
-              Previous
-            </button>
-            <button className="w-8 h-8 text-sm text-[#171A1F] hover:bg-gray-100 rounded font-['Open_Sans']">
-              1
-            </button>
-            <button className="w-8 h-8 text-sm text-[#171A1F] hover:bg-gray-100 rounded font-['Open_Sans']">
-              2
-            </button>
-            <button className="w-8 h-8 text-sm text-[#171A1F] hover:bg-gray-100 rounded font-['Open_Sans']">
-              3
-            </button>
-            <button className="flex items-center gap-1 text-sm text-[#171A1F] hover:text-[#003366] font-['Open_Sans']">
-              Next
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            className="mt-8"
+          />
 
           {/* Modal para crear criterio EUR-ACE */}
           <NewEurAceCriterionModal
