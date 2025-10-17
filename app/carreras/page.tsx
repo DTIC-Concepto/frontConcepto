@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { RoleGuard } from "@/components/RoleGuard";
 import NewCareerModal from "@/components/NewCareerModal";
 import { Search, ChevronLeft, Plus, SquarePen, Trash2 } from "lucide-react";
 import { Career, CareerFilters, Faculty } from "@/lib/api";
@@ -116,12 +117,13 @@ export default function Carreras() {
   return (
     <ProtectedRoute>
       <Layout>
-      <div className="p-4 md:p-6">
-        <div className="mb-6 md:mb-9">
-          <h1 className="text-3xl md:text-4xl font-bold font-montserrat text-[#171A1F]">
-            Gestión de Carreras
-          </h1>
-        </div>
+        <RoleGuard allowedRoles={['ADMINISTRADOR']}>
+          <div className="p-4 md:p-6">
+            <div className="mb-6 md:mb-9">
+              <h1 className="text-3xl md:text-4xl font-bold font-montserrat text-[#171A1F]">
+                Gestión de Carreras
+              </h1>
+            </div>
 
         {/* Search and Filters */}
         <div className="bg-white rounded border border-border p-4 mb-6 flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
@@ -226,12 +228,12 @@ export default function Carreras() {
                 <tbody>
                   {currentCareers.map((career) => (
                     <tr key={career.id} className="border-t border-border">
-                      <td className="px-4 py-5 text-sm text-[#171A1F] font-medium w-32">{career.codigo}</td>
-                      <td className="px-4 py-5 text-sm text-[#171A1F] w-80">{career.nombre}</td>
-                      <td className="px-4 py-5 text-sm text-[#171A1F] w-40">
+                      <td className="px-4 py-8 text-sm text-[#171A1F] font-medium w-32">{career.codigo}</td>
+                      <td className="px-4 py-8 text-sm text-[#171A1F] w-80">{career.nombre}</td>
+                      <td className="px-4 py-8 text-sm text-[#171A1F] w-40">
                         {career.facultadNombre || 'Sin facultad'}
                       </td>
-                      <td className="px-4 py-5 text-sm w-60">
+                      <td className="px-4 py-8 text-sm w-60">
                         <span className={`${
                           career.coordinadorNombre === 'Sin asignar' 
                             ? 'text-[#565D6D] italic' 
@@ -240,7 +242,7 @@ export default function Carreras() {
                           {career.coordinadorNombre || 'Sin asignar'}
                         </span>
                       </td>
-                      <td className="px-4 py-5 w-32">
+                      <td className="px-4 py-8 w-32">
                         <div className="flex items-center justify-center gap-2">
                           <button 
                             onClick={() => handleEdit(career)}
@@ -321,7 +323,7 @@ export default function Carreras() {
         )}
 
         {/* Pagination */}
-        {!isLoading && filteredCareers.length > itemsPerPage && (
+        {!isLoading && (
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
@@ -337,14 +339,15 @@ export default function Carreras() {
             {careers.length !== filteredCareers.length && ` (${careers.length} total)`}
           </div>
         )}
-      </div>
 
-      {/* Modal */}
-      <NewCareerModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={handleModalSuccess}
-      />
+        {/* Modal */}
+        <NewCareerModal 
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSuccess={handleModalSuccess}
+        />
+      </div>
+      </RoleGuard>
     </Layout>
     </ProtectedRoute>
   );

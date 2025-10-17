@@ -5,13 +5,14 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import ChangePasswordModal from "@/components/ChangePasswordModal";
 import { ChevronDown, Lock } from "lucide-react";
 import { useState, useEffect } from "react";
-import { ProfileService, UserProfile, Permission } from "@/lib/profile";
+import { ProfileService, UserProfile, UserProfileWithRoles, Permission } from "@/lib/profile";
 import { ROLE_DISPLAY_NAMES, RoleType } from "@/lib/api";
 import NotificationService from "@/lib/notifications";
 
 export default function Perfil() {
   const [showPermissions, setShowPermissions] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [userProfileWithRoles, setUserProfileWithRoles] = useState<UserProfileWithRoles | null>(null);
   const [userPermissions, setUserPermissions] = useState<Permission[]>([]);
   const [roleDescription, setRoleDescription] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
@@ -26,18 +27,38 @@ export default function Perfil() {
     try {
       setIsLoading(true);
       
-      // Obtener perfil del usuario
-      const profile = await ProfileService.getUserProfile();
-      setUserProfile(profile);
+      // Intentar obtener perfil completo con roles primero
+      try {
+        const profileWithRoles = await ProfileService.getUserProfileWithRoles();
+        setUserProfileWithRoles(profileWithRoles);
+        
+        // Obtener también el perfil básico para compatibilidad
+        const basicProfile = await ProfileService.getUserProfile();
+        setUserProfile(basicProfile);
+        
+        // Obtener permisos consolidados
+        if (profileWithRoles.permisosConsolidados.length > 0) {
+          const permissions = await ProfileService.getPermissionsWithDescriptions(
+            profileWithRoles.permisosConsolidados
+          );
+          setUserPermissions(permissions);
+        }
+      } catch (rolesError) {
+        console.warn('Error obteniendo perfil con roles, usando perfil básico:', rolesError);
+        
+        // Fallback al perfil básico
+        const basicProfile = await ProfileService.getUserProfile();
+        setUserProfile(basicProfile);
 
-      // Obtener permisos del rol del usuario
-      const permissionsList = await ProfileService.getUserPermissions(profile.rol);
-      const permissionsWithDesc = await ProfileService.getPermissionsWithDescriptions(permissionsList);
-      setUserPermissions(permissionsWithDesc);
+        // Obtener permisos del rol principal
+        const permissions = await ProfileService.getUserPermissions(basicProfile.rol);
+        const permissionsWithDesc = await ProfileService.getPermissionsWithDescriptions(permissions);
+        setUserPermissions(permissionsWithDesc);
 
-      // Obtener descripción del rol
-      const description = await ProfileService.getRoleDescription(profile.rol);
-      setRoleDescription(description);
+        // Obtener descripción del rol
+        const description = await ProfileService.getRoleDescription(basicProfile.rol);
+        setRoleDescription(description);
+      }
 
     } catch (error) {
       console.error('Error al cargar datos del perfil:', error);
@@ -65,18 +86,11 @@ export default function Perfil() {
   };
 
   // Función helper para obtener color del rol
-  const getRoleColor = (role: string) => {
-    const roleColors: Record<string, string> = {
-      'ADMINISTRADOR': 'bg-red-600',
-      'DGIP': 'bg-purple-600',
-      'DECANO': 'bg-[#003366]',
-      'SUBDECANO': 'bg-blue-600',
-      'JEFE_DEPARTAMENTO': 'bg-green-600',
-      'COORDINADOR': 'bg-orange-600',
-      'PROFESOR': 'bg-gray-600',
-      'CEI': 'bg-indigo-600'
-    };
-    return roleColors[role] || 'bg-gray-600';
+  const getRoleColor = (role: string, isPrincipal: boolean = false) => {
+    if (isPrincipal) {
+      return 'bg-[#003366]'; // Azul para rol principal (rol con el que inició sesión)
+    }
+    return 'bg-[#16A34A]'; // Verde para roles adicionales
   };
 
   if (isLoading) {
@@ -257,15 +271,64 @@ export default function Perfil() {
             <div className="space-y-6">
               <div>
                 <p className="text-[#565D6D] font-open-sans text-sm mb-3">
-                  Rol Asignado:
+                  Rol{(userProfileWithRoles?.roles.length || 0) > 1 ? 'es' : ''} Asignado{(userProfileWithRoles?.roles.length || 0) > 1 ? 's' : ''}:
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <span
-                    className={`${getRoleColor(userProfile.rol)} text-white px-4 py-1.5 rounded-full text-base font-semibold font-open-sans`}
-                  >
-                    {ROLE_DISPLAY_NAMES[userProfile.rol as RoleType] || userProfile.rol}
-                  </span>
+                  {userProfileWithRoles?.roles && userProfileWithRoles.roles.length > 0 ? (
+                    userProfileWithRoles.roles
+                      .filter(role => role.activo)
+                      .map((roleInfo, index) => {
+                        const isPrincipal = roleInfo.esPrincipal;
+                        return (
+                          <div key={index} className="relative group">
+                            <span
+                              className={`${getRoleColor(roleInfo.rol, isPrincipal)} text-white px-4 py-1.5 rounded-full text-base font-semibold font-open-sans cursor-help`}
+                            >
+                              {ROLE_DISPLAY_NAMES[roleInfo.rol as RoleType] || roleInfo.rol}
+                              {isPrincipal && (
+                                <span className="ml-1 text-xs bg-white/20 px-1.5 py-0.5 rounded">
+                                  Principal
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        );
+                      })
+                  ) : userProfile?.roles && userProfile.roles.length > 0 ? (
+                    userProfile.roles.map((roleInfo, index) => {
+                      const isPrincipal = userProfile.rolPrincipal === roleInfo.rol;
+                      return (
+                        <div key={index} className="relative group">
+                          <span
+                            className={`${getRoleColor(roleInfo.rol, isPrincipal)} text-white px-4 py-1.5 rounded-full text-base font-semibold font-open-sans cursor-help`}
+                          >
+                            {ROLE_DISPLAY_NAMES[roleInfo.rol as RoleType] || roleInfo.rol}
+                            {isPrincipal && (
+                              <span className="ml-1 text-xs bg-white/20 px-1.5 py-0.5 rounded">
+                                Principal
+                              </span>
+                            )}
+                          </span>
+                          {roleInfo.observaciones && (
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity max-w-48 text-center pointer-events-none z-10">
+                              {roleInfo.observaciones}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  ) : userProfile && (
+                    <span
+                      className={`${getRoleColor(userProfile.rol, true)} text-white px-4 py-1.5 rounded-full text-base font-semibold font-open-sans`}
+                    >
+                      {ROLE_DISPLAY_NAMES[userProfile.rol as RoleType] || userProfile.rol}
+                      <span className="ml-1 text-xs bg-white/20 px-1.5 py-0.5 rounded">
+                        Principal
+                      </span>
+                    </span>
+                  )}
                 </div>
+                
                 {roleDescription && (
                   <p className="text-[#565D6D] font-open-sans text-sm mt-2 italic">
                     {roleDescription}

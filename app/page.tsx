@@ -6,9 +6,11 @@ import { ChevronUp, ChevronDown, Check } from "lucide-react";
 import { AuthService } from "../lib/auth";
 import { VALID_ROLES, ROLE_DISPLAY_NAMES, RoleType } from "../lib/api";
 import NotificationService from "../lib/notifications";
+import { useUser } from "../contexts/UserContext";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { setUser } = useUser();
   const [formData, setFormData] = useState({
     correo: "",
     contrasena: "",
@@ -57,7 +59,22 @@ export default function LoginPage() {
         rol: formData.rol,
       });
 
-      // Si el login es exitoso, mostrar notificación y redirigir
+      // Si el login es exitoso, configurar usuario en contexto
+      // Usar el rol que viene del backend en lugar de hardcodearlo
+      const userRole = response.user?.rol || response.user?.role || formData.rol;
+      // Intentar obtener el nombre completo del usuario desde la respuesta del backend
+      const fullName = response.user?.nombres 
+        ? `${response.user.nombres} ${response.user.apellidos || ''}`.trim()
+        : response.user?.nombre || formData.correo.split('@')[0];
+      
+      setUser({
+        id: response.user?.id || '1',
+        name: fullName,
+        email: formData.correo,
+        role: userRole,
+      });
+
+      // Mostrar notificación y redirigir
       NotificationService.success(
         "¡Bienvenido!",
         "Has iniciado sesión correctamente."

@@ -11,36 +11,90 @@ export async function GET(request: NextRequest) {
     const estadoActivo = searchParams.get('estadoActivo');
     const search = searchParams.get('search');
 
-    // Construir URL con parámetros
-    const params = new URLSearchParams();
-    if (rol) params.append('rol', rol);
-    if (estadoActivo !== null) params.append('estadoActivo', estadoActivo);
-    if (search) params.append('search', search);
-
-    const queryString = params.toString();
-    const url = `${API_BASE_URL}/usuarios${queryString ? `?${queryString}` : ''}`;
-
     // Obtener token de autorización
     const authorization = request.headers.get('authorization');
     
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(authorization && { 'Authorization': authorization }),
-      },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
+    if (!authorization) {
       return NextResponse.json(
-        { error: data.message || 'Error al obtener usuarios' },
-        { status: response.status }
+        { error: 'Token de autorización requerido' },
+        { status: 401 }
       );
     }
 
-    return NextResponse.json(data);
+    // Hacer peticiones iterativas para obtener todos los datos
+    let allData: any[] = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      // Construir URL con parámetros
+      const params = new URLSearchParams();
+      if (rol) params.append('rol', rol);
+      if (estadoActivo !== null) params.append('estadoActivo', estadoActivo);
+      if (search) params.append('search', search);
+      params.append('page', page.toString());
+
+      const queryString = params.toString();
+      const url = `${API_BASE_URL}/usuarios?${queryString}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': authorization,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return NextResponse.json(
+          { error: data.message || 'Error al obtener usuarios' },
+          { status: response.status }
+        );
+      }
+
+      // El backend puede devolver {data: Array, total: number} o Array directamente
+      if (data && Array.isArray(data.data)) {
+        allData = [...allData, ...data.data];
+        
+        const total = data.total || 0;
+        const currentCount = allData.length;
+        hasMore = currentCount < total;
+        page++;
+        
+        console.log(`Usuarios página ${page - 1}: ${data.data.length} items, total acumulado: ${currentCount}/${total}`);
+      } else if (Array.isArray(data)) {
+        // Si el backend devuelve directamente un array (sin paginación)
+        allData = data;
+        hasMore = false;
+      } else {
+        hasMore = false;
+      }
+
+      // Límite de seguridad
+      if (page > 100) {
+        console.warn('Usuarios: Límite de páginas alcanzado');
+        break;
+      }
+    }
+
+    // Asegurar que cada usuario tenga la información de roles correctamente estructurada
+    const processedData = allData.map(user => {
+      // Si el usuario tiene múltiples roles, asegurar que estén en el formato correcto
+      if (user.roles && Array.isArray(user.roles)) {
+        return {
+          ...user,
+          // Mantener compatibilidad con el campo 'rol' para el rol principal
+          rol: user.rolPrincipal || user.rol || (user.roles.length > 0 ? user.roles[0].rol : 'PROFESOR')
+        };
+      }
+      return user;
+    });
+
+    console.log('Usuarios GET successful: Total de', processedData.length, 'usuarios');
+
+    return NextResponse.json(processedData);
   } catch (error) {
     console.error('Error en proxy GET usuarios:', error);
     return NextResponse.json(

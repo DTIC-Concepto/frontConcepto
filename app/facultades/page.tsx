@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { RoleGuard } from "@/components/RoleGuard";
 import NewFacultyModal from "@/components/NewFacultyModal";
 import { Search, ChevronLeft, ChevronRight, Plus, SquarePen, Trash2 } from "lucide-react";
 import { Faculty, FacultyFilters, Career } from "@/lib/api";
@@ -22,7 +23,7 @@ export default function Facultades() {
   const [careers, setCareers] = useState<Career[]>([]);
 
   // Configuración de paginación
-  const itemsPerPage = 7;
+  const itemsPerPage = 5;
   const totalPages = Math.ceil(filteredFaculties.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -110,12 +111,13 @@ export default function Facultades() {
   return (
     <ProtectedRoute>
       <Layout>
-      <div className="p-4 md:p-6">
-        <div className="mb-6 md:mb-9">
-          <h1 className="text-3xl md:text-4xl font-bold font-montserrat text-[#171A1F]">
-            Gestión de Facultades
-          </h1>
-        </div>
+        <RoleGuard allowedRoles={['ADMINISTRADOR']}>
+          <div className="p-4 md:p-6">
+            <div className="mb-6 md:mb-9">
+              <h1 className="text-3xl md:text-4xl font-bold font-montserrat text-[#171A1F]">
+                Gestión de Facultades
+              </h1>
+            </div>
 
         {/* Search and Filters */}
         <div className="bg-white rounded border border-border p-4 mb-6 flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
@@ -206,12 +208,12 @@ export default function Facultades() {
                 <tbody>
                   {currentFaculties.map((faculty) => (
                     <tr key={faculty.id} className="border-t border-border">
-                      <td className="px-4 py-4 text-sm text-[#171A1F] font-medium w-20">{faculty.codigo}</td>
-                      <td className="px-4 py-4 text-sm text-[#171A1F] w-80">{faculty.nombre}</td>
-                      <td className="px-4 py-4 text-sm text-[#171A1F] w-20">
+                      <td className="px-4 py-6 text-sm text-[#171A1F] font-medium w-20">{faculty.codigo}</td>
+                      <td className="px-4 py-6 text-sm text-[#171A1F] w-80">{faculty.nombre}</td>
+                      <td className="px-4 py-6 text-sm text-[#171A1F] w-20">
                         {faculty.carreras || 0}
                       </td>
-                      <td className="px-4 py-4 text-sm w-60">
+                      <td className="px-4 py-6 text-sm w-60">
                         <span className={`${
                           faculty.decano === 'Sin asignar' 
                             ? 'text-[#565D6D] italic' 
@@ -220,7 +222,7 @@ export default function Facultades() {
                           {faculty.decano || 'Sin asignar'}
                         </span>
                       </td>
-                      <td className="px-4 py-4 w-32">
+                      <td className="px-4 py-6 w-32">
                         <div className="flex items-center justify-center gap-2">
                           <button 
                             onClick={() => handleEdit(faculty)}
@@ -301,7 +303,7 @@ export default function Facultades() {
         )}
 
         {/* Pagination */}
-        {!isLoading && filteredFaculties.length > itemsPerPage && (
+        {!isLoading && (
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
@@ -317,14 +319,15 @@ export default function Facultades() {
             {faculties.length !== filteredFaculties.length && ` (${faculties.length} total)`}
           </div>
         )}
-      </div>
 
-      {/* Modal */}
-      <NewFacultyModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={handleModalSuccess}
-      />
+        {/* Modal */}
+        <NewFacultyModal 
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSuccess={handleModalSuccess}
+        />
+      </div>
+      </RoleGuard>
     </Layout>
     </ProtectedRoute>
   );

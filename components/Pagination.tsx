@@ -10,8 +10,6 @@ interface PaginationProps {
 }
 
 export default function Pagination({ currentPage, totalPages, onPageChange, className = "" }: PaginationProps) {
-  if (totalPages <= 1) return null;
-
   const getVisiblePages = () => {
     const maxVisible = 5;
     let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
@@ -49,7 +47,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange, clas
             onClick={() => onPageChange(pageNum)}
             className={`min-w-[32px] h-8 text-sm transition-colors rounded flex items-center justify-center ${
               currentPage === pageNum
-                ? 'bg-[#003366] text-white font-medium'
+                ? 'text-[#171A1F] font-bold'
                 : 'text-[#171A1F] hover:text-[#003366] hover:bg-gray-50'
             }`}
           >

@@ -2,6 +2,7 @@
 
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { RoleGuard } from "@/components/RoleGuard";
 import NewUserModal from "@/components/NewUserModal";
 import { Search, ChevronLeft, Edit, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -33,7 +34,8 @@ export default function Usuarios() {
   const loadUsers = async () => {
     try {
       setIsLoading(true);
-      const userData = await UsersService.getUsers();
+      const userData = await UsersService.getUsersWithFullRoles();
+      console.log('Usuarios cargados con roles:', userData); // Para debug
       setUsers(userData);
       applyFilters(userData);
     } catch (error) {
@@ -94,12 +96,13 @@ export default function Usuarios() {
   return (
     <ProtectedRoute>
       <Layout>
-        <div className="p-4 md:p-6 lg:p-8 space-y-6">
-          <div className="mb-6 md:mb-9">
-            <h1 className="text-3xl md:text-4xl font-bold font-montserrat text-[#171A1F]">
-              Gestión de Usuarios
-            </h1>
-          </div>
+        <RoleGuard allowedRoles={['ADMINISTRADOR']}>
+          <div className="p-4 md:p-6 lg:p-8 space-y-6">
+            <div className="mb-6 md:mb-9">
+              <h1 className="text-3xl md:text-4xl font-bold font-montserrat text-[#171A1F]">
+                Gestión de Usuarios
+              </h1>
+            </div>
 
           {/* Search and Filters */}
           <div className="bg-white rounded border border-border p-4 mb-6 flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
@@ -201,13 +204,10 @@ export default function Usuarios() {
                   <thead>
                     <tr className="bg-[#F3F4F6]/50">
                       <th className="text-left px-4 py-5 text-[#565D6D] font-open-sans text-sm font-normal">
-                        Cédula
-                      </th>
-                      <th className="text-left px-4 py-5 text-[#565D6D] font-open-sans text-sm font-normal">
-                        Nombre Completo
-                      </th>
-                      <th className="text-left px-4 py-5 text-[#565D6D] font-open-sans text-sm font-normal">
                         Email
+                      </th>
+                      <th className="text-left px-4 py-5 text-[#565D6D] font-open-sans text-sm font-normal">
+                        Nombre
                       </th>
                       <th className="text-left px-4 py-5 text-[#565D6D] font-open-sans text-sm font-normal">
                         Rol
@@ -226,19 +226,22 @@ export default function Usuarios() {
                         key={user.id || index}
                         className="border-t border-[#DEE1E6] hover:bg-gray-50"
                       >
-                        <td className="px-4 py-5 text-[#171A1F] font-open-sans text-sm">
-                          {user.cedula}
-                        </td>
-                        <td className="px-4 py-5 text-[#171A1F] font-open-sans text-sm">
-                          {`${user.nombres} ${user.apellidos}`}
-                        </td>
-                        <td className="px-4 py-5 text-[#171A1F] font-open-sans text-sm">
+                        <td className="px-4 py-8 text-[#171A1F] font-open-sans text-sm">
                           {user.correo}
                         </td>
-                        <td className="px-4 py-5 text-[#171A1F] font-open-sans text-sm">
-                          {ROLE_DISPLAY_NAMES[user.rol]}
+                        <td className="px-4 py-8 text-[#171A1F] font-open-sans text-sm">
+                          {`${user.nombres} ${user.apellidos}`}
                         </td>
-                        <td className="px-4 py-5">
+                        <td className="px-4 py-8 text-[#171A1F] font-open-sans text-sm">
+                          {user.roles && user.roles.length > 0 
+                            ? user.roles
+                                .filter(role => role.rol) // Filtrar roles válidos
+                                .map(role => ROLE_DISPLAY_NAMES[role.rol] || role.rol)
+                                .join(' / ') 
+                            : ROLE_DISPLAY_NAMES[user.rol] || user.rol
+                          }
+                        </td>
+                        <td className="px-4 py-8">
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                               user.estadoActivo
@@ -249,7 +252,7 @@ export default function Usuarios() {
                             {user.estadoActivo ? 'Activo' : 'Inactivo'}
                           </span>
                         </td>
-                        <td className="px-4 py-5">
+                        <td className="px-4 py-8">
                           <div className="flex items-center gap-2">
                             <button 
                               className="p-1.5 text-[#003366] hover:bg-gray-100 rounded transition-colors"
@@ -275,7 +278,7 @@ export default function Usuarios() {
           </div>
 
           {/* Pagination */}
-          {!isLoading && filteredUsers.length > itemsPerPage && (
+          {!isLoading && (
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
@@ -298,7 +301,8 @@ export default function Usuarios() {
             onClose={() => setIsModalOpen(false)}
             onUserCreated={handleUserCreated}
           />
-        </div>
+          </div>
+        </RoleGuard>
       </Layout>
     </ProtectedRoute>
   );

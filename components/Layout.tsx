@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { AuthService } from "@/lib/auth";
+import { ROLE_DISPLAY_NAMES, RoleType } from "@/lib/api";
 import NotificationService from "@/lib/notifications";
+import { useUser } from "@/contexts/UserContext";
 import {
   LayoutDashboard,
   Building2,
@@ -14,13 +17,21 @@ import {
   User,
   Settings,
   LogOut,
+  UserIcon,
+  Home,
+  Layers,
+  BookOpen,
+  FileText,
+  ChevronDown,
+  Table2,
+  LayoutGrid,
 } from "lucide-react";
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
-const menuItems = [
+const adminMenuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: Building2, label: "Facultades", path: "/facultades" },
   { icon: GraduationCap, label: "Carreras", path: "/carreras" },
@@ -29,12 +40,40 @@ const menuItems = [
   { icon: User, label: "Mi Perfil", path: "/perfil" },
 ];
 
+const coordinadorMenuItems = [
+  { icon: Home, label: "Inicio", path: "/dashboard" },
+  { icon: Layers, label: "Objetivos de Carrera", path: "/objetivos-carrera" },
+  { icon: BookOpen, label: "R. de Aprendizaje", path: "/resultados-aprendizaje" },
+  { icon: FileText, label: "Criterios EUR-ACE", path: "/criterios-eur-ace" },
+  { icon: Table2, label: "Editor de Mapeos", path: "/editor-mapeos" },
+  { icon: User, label: "Mi Perfil", path: "/perfil" },
+];
+
 export default function Layout({ children }: LayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, logout } = useUser();
+  const [userRole, setUserRole] = useState<string>('');
+  const [userName, setUserName] = useState<string>('');
+  const [editorOpen, setEditorOpen] = useState(false);
+
+  // Obtener datos del usuario al cargar el componente
+  useEffect(() => {
+    try {
+      const role = AuthService.getUserRole();
+      const name = AuthService.getUserName();
+      setUserRole(role);
+      setUserName(name);
+    } catch (error) {
+      console.error('Error obteniendo datos del usuario:', error);
+    }
+  }, []);
 
   const handleLogout = () => {
     try {
+      // Primero limpiar el contexto de usuario
+      logout();
+      // Luego limpiar AuthService
       AuthService.logout();
       NotificationService.success(
         "Sesión cerrada",
@@ -94,9 +133,14 @@ export default function Layout({ children }: LayoutProps) {
         </div>
 
         <div className="flex items-center gap-2 md:gap-4">
-          <span className="hidden md:inline text-white text-sm font-montserrat font-semibold">
-            Administrador
-          </span>
+          <div className="hidden md:flex flex-col items-end">
+            <span className="text-white text-sm font-montserrat font-medium">
+              {user?.name || userName || 'Usuario'}
+            </span>
+            <span className="text-white/70 text-xs font-open-sans">
+              {user?.role ? (ROLE_DISPLAY_NAMES[user.role as RoleType] || user.role) : (userRole ? (ROLE_DISPLAY_NAMES[userRole as RoleType] || userRole) : 'Cargando...')}
+            </span>
+          </div>
           <button className="w-10 h-10 flex items-center justify-center rounded bg-[#003366]/40 hover:bg-[#003366]/60 transition-colors">
             <Settings className="w-4 h-4 text-white" />
           </button>
@@ -106,8 +150,8 @@ export default function Layout({ children }: LayoutProps) {
           >
             <LogOut className="w-4 h-4 text-white" />
           </button>
-          <div className="w-9 h-9 rounded-full bg-[#E3F9EB] border border-transparent flex items-center justify-center overflow-hidden">
-            <div className="w-full h-full bg-gradient-to-br from-green-200 to-green-300" />
+          <div className="w-9 h-9 rounded-full bg-white border-2 border-white/20 flex items-center justify-center overflow-hidden">
+            <UserIcon className="w-5 h-5 text-[#003366]" />
           </div>
         </div>
       </header>
@@ -116,25 +160,118 @@ export default function Layout({ children }: LayoutProps) {
         {/* Sidebar */}
         <aside className="hidden md:flex w-56 lg:w-64 border-r border-[#DEE1E6] bg-white flex-col">
           <nav className="p-2 space-y-1">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.path;
-              return (
+            {userRole === 'COORDINADOR' || userRole === 'CEI' ? (
+              // Sidebar específico para roles académicos (COORDINADOR y CEI)
+              <>
                 <Link
-                  key={item.path}
-                  href={item.path}
+                  href="/dashboard"
                   className={cn(
-                    "flex items-center gap-3 px-2 py-2.5 rounded text-sm font-open-sans transition-colors",
-                    isActive
-                      ? "bg-[#F3F4F6] text-[#1E2128]"
-                      : "text-[#565D6D] hover:bg-gray-50"
+                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                    pathname === "/dashboard" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
                   )}
                 >
-                  <Icon className="w-5 h-5 flex-shrink-0" />
-                  <span>{item.label}</span>
+                  <Home className="w-5 h-5" />
+                  <span>Inicio</span>
                 </Link>
-              );
-            })}
+
+                <Link
+                  href="/objetivos-carrera"
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors mt-1",
+                    pathname === "/objetivos-carrera" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
+                  )}
+                >
+                  <Layers className="w-5 h-5" />
+                  <span>Objetivos de Carrera</span>
+                </Link>
+
+                <Link
+                  href="/resultados-aprendizaje"
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors mt-1",
+                    pathname === "/resultados-aprendizaje" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
+                  )}
+                >
+                  <BookOpen className="w-5 h-5" />
+                  <span>R. de Aprendizaje</span>
+                </Link>
+
+                <Link
+                  href="/criterios-eur-ace"
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors mt-1",
+                    pathname === "/criterios-eur-ace" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
+                  )}
+                >
+                  <FileText className="w-5 h-5" />
+                  <span>Criterios EUR-ACE</span>
+                </Link>
+
+                <div className="mt-1">
+                  <button
+                    onClick={() => setEditorOpen(!editorOpen)}
+                    className="flex items-center justify-between w-full px-3 py-2 rounded-md text-sm font-medium text-[#565D6D] hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Settings className="w-5 h-5" />
+                      <span>Editor Mapeos</span>
+                    </div>
+                    <ChevronDown className={cn("w-4 h-4 transition-transform", editorOpen && "rotate-180")} />
+                  </button>
+                  
+                  {editorOpen && (
+                    <div className="ml-8 mt-1 space-y-1">
+                      <Link
+                        href="/mapeos/ra-vs-opp"
+                        className="flex items-center gap-2 px-3 py-2 text-sm text-[#565D6D] hover:bg-gray-50 rounded-md"
+                      >
+                        <Table2 className="w-3 h-3" />
+                        <span>RA vs OPP</span>
+                      </Link>
+                      <Link
+                        href="/mapeos/ra-vs-eurace"
+                        className="flex items-center gap-2 px-3 py-2 text-sm text-[#565D6D] hover:bg-gray-50 rounded-md"
+                      >
+                        <LayoutGrid className="w-3 h-3" />
+                        <span>RA vs EUR-ACE</span>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+
+                <Link
+                  href="/perfil"
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors mt-1",
+                    pathname === "/perfil" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
+                  )}
+                >
+                  <User className="w-5 h-5" />
+                  <span>Mi Perfil</span>
+                </Link>
+              </>
+            ) : (
+              // Sidebar original para Administrador (por defecto y cuando no es coordinador ni CEI)
+              adminMenuItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    href={item.path}
+                    className={cn(
+                      "flex items-center gap-3 px-2 py-2.5 rounded text-sm font-open-sans transition-colors",
+                      isActive
+                        ? "bg-[#F3F4F6] text-[#1E2128]"
+                        : "text-[#565D6D] hover:bg-gray-50"
+                    )}
+                  >
+                    <Icon className="w-5 h-5 flex-shrink-0" />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })
+            )}
           </nav>
         </aside>
 
