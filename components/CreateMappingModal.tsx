@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import NotificationService from "@/lib/notifications";
 
 interface CreateMappingModalProps {
   isOpen: boolean;
@@ -23,19 +24,43 @@ export default function CreateMappingModal({
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSave = async () => {
-    if (!justification.trim()) {
-      alert('Por favor, ingrese una justificación');
+    const trimmedJustification = justification.trim();
+    
+    // Validación: campo vacío
+    if (!trimmedJustification) {
+      NotificationService.warning(
+        'Campo requerido',
+        'Por favor, ingrese una justificación para esta relación.'
+      );
+      return;
+    }
+
+    // Validación: longitud mínima de 10 caracteres
+    if (trimmedJustification.length < 10) {
+      NotificationService.warning(
+        'Justificación muy corta',
+        'La justificación debe tener al menos 10 caracteres.'
+      );
       return;
     }
 
     try {
       setIsLoading(true);
-      await onSave(justification.trim());
+      await onSave(trimmedJustification);
+      
+      NotificationService.success(
+        'Relación creada',
+        'La relación se ha creado exitosamente.'
+      );
+      
       setJustification('');
       onClose();
     } catch (error) {
       console.error('Error guardando mapping:', error);
-      alert('Error al guardar la relación. Por favor, intente nuevamente.');
+      NotificationService.error(
+        'Error al guardar',
+        error instanceof Error ? error.message : 'No se pudo guardar la relación. Por favor, intente nuevamente.'
+      );
     } finally {
       setIsLoading(false);
     }

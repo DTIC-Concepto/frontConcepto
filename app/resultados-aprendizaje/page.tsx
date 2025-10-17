@@ -14,7 +14,8 @@ import NewLearningOutcomeModal from "@/components/NewLearningOutcomeModal";
 import Pagination from "@/components/Pagination";
 
 export default function ResultadosAprendizaje() {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTermGenerales, setSearchTermGenerales] = useState("");
+  const [searchTermEspecificos, setSearchTermEspecificos] = useState("");
   const [activeTab, setActiveTab] = useState("generales");
   const [outcomes, setOutcomes] = useState<LearningOutcome[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -73,6 +74,7 @@ export default function ResultadosAprendizaje() {
 
   // Filtrar resultados según el tab activo y búsqueda
   const getFilteredResults = (tipo: "GENERAL" | "ESPECIFICO") => {
+    const searchTerm = tipo === "GENERAL" ? searchTermGenerales : searchTermEspecificos;
     const filtered = outcomes.filter(outcome => {
       const matchesSearch = outcome.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            outcome.descripcion.toLowerCase().includes(searchTerm.toLowerCase());
@@ -95,14 +97,19 @@ export default function ResultadosAprendizaje() {
     };
   };
 
-  // Resetear página cuando cambie el filtro
-  const handleSearchChange = (value: string) => {
-    setSearchTerm(value);
+  // Resetear página cuando cambie el filtro de Generales
+  const handleSearchChangeGenerales = (value: string) => {
+    setSearchTermGenerales(value);
     setCurrentPageGenerales(1);
+  };
+
+  // Resetear página cuando cambie el filtro de Específicos
+  const handleSearchChangeEspecificos = (value: string) => {
+    setSearchTermEspecificos(value);
     setCurrentPageEspecificos(1);
   };
 
-  const ResultsTable = ({ data }: { data: LearningOutcome[] }) => (
+  const ResultsTable = ({ data, searchTerm }: { data: LearningOutcome[], searchTerm: string }) => (
     <div className="bg-white border border-white rounded-md shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -212,14 +219,14 @@ export default function ResultadosAprendizaje() {
                   <Input
                     type="text"
                     placeholder="Buscar por código o descripción..."
-                    value={searchTerm}
-                    onChange={(e) => handleSearchChange(e.target.value)}
+                    value={searchTermGenerales}
+                    onChange={(e) => handleSearchChangeGenerales(e.target.value)}
                     className="pl-10 border-[#DEE1E6]"
                   />
                 </div>
               </div>
 
-              <ResultsTable data={getPaginatedResults("GENERAL").data} />
+              <ResultsTable data={getPaginatedResults("GENERAL").data} searchTerm={searchTermGenerales} />
 
               <Pagination
                 currentPage={getPaginatedResults("GENERAL").currentPage}
@@ -236,14 +243,14 @@ export default function ResultadosAprendizaje() {
                   <Input
                     type="text"
                     placeholder="Buscar por código o descripción..."
-                    value={searchTerm}
-                    onChange={(e) => handleSearchChange(e.target.value)}
+                    value={searchTermEspecificos}
+                    onChange={(e) => handleSearchChangeEspecificos(e.target.value)}
                     className="pl-10 border-[#DEE1E6]"
                   />
                 </div>
               </div>
 
-              <ResultsTable data={getPaginatedResults("ESPECIFICO").data} />
+              <ResultsTable data={getPaginatedResults("ESPECIFICO").data} searchTerm={searchTermEspecificos} />
 
               <Pagination
                 currentPage={getPaginatedResults("ESPECIFICO").currentPage}
