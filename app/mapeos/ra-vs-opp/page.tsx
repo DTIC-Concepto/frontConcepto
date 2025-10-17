@@ -9,7 +9,7 @@ import { Plus, Info, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LearningOutcome, LearningOutcomesService } from "@/lib/learning-outcomes";
 import { ProgramObjective, ProgramObjectivesService } from "@/lib/program-objectives";
-import { MappingsService, type MappingResponse, type OppRaMapping } from "@/lib/mappings";
+import { getOppRaMatrix, MappingsService, type MappingResponse, type OppRaMapping } from "@/lib/mappings";
 import { Tooltip } from "@/components/ui/tooltip";
 
 // Interfaces para los datos dinámicos
@@ -78,42 +78,47 @@ export default function MatrizRAvsOPP() {
   const loadMatrixData = async () => {
     try {
       setIsLoading(true);
-      
-      // Cargar RA (Learning Outcomes) - primero RG luego RE
-      const learningOutcomes = await LearningOutcomesService.getLearningOutcomes();
-      const raData: MatrixRA[] = learningOutcomes
-        .map((ra: LearningOutcome) => ({
-          id: ra.id!,
-          code: ra.codigo,
-          description: ra.descripcion,
-          type: ra.tipo
-        }))
-        .sort((a: MatrixRA, b: MatrixRA) => {
-          // Primero GENERAL (RG), luego ESPECIFICO (RE)
-          if (a.type === 'GENERAL' && b.type === 'ESPECIFICO') return -1;
-          if (a.type === 'ESPECIFICO' && b.type === 'GENERAL') return 1;
-          return a.code.localeCompare(b.code);
-        });
+      // Obtener carreraId del usuario logueado
+      let carreraId: number | null = null;
+      try {
+        const rawUser = typeof window !== 'undefined' ? localStorage.getItem('auth_user') : null;
+        if (rawUser) {
+          const parsedUser = JSON.parse(rawUser);
+          carreraId = parsedUser?.carrera?.id ?? parsedUser?.carreraId ?? null;
+        }
+      } catch {}
+      if (!carreraId) throw new Error('No se encontró carreraId');
 
-      // Cargar OPP (Program Objectives)
-      const programObjectives = await ProgramObjectivesService.getProgramObjectives();
-      const oppData: MatrixOPP[] = programObjectives
-        .map((opp: ProgramObjective) => ({
-          id: opp.id!,
-          code: opp.codigo,
-          description: opp.descripcion
+      // Llamar endpoint matrix
+  const matrix = await getOppRaMatrix(carreraId);
+      // Adaptar datos
+      setRaList(
+        (matrix.ras || []).map((ra: any) => ({
+          id: ra.id,
+          code: ra.code,
+          description: ra.description,
+          type: ra.type
         }))
-        .sort((a: MatrixOPP, b: MatrixOPP) => a.code.localeCompare(b.code));
-
-      setRaList(raData);
-      setOppList(oppData);
-      
-      // Cargar mappings existentes
-      const existingMappings = await MappingsService.getOppRaMappings();
-      setMappings(existingMappings);
+      );
+      setOppList(
+        (matrix.opps || []).map((opp: any) => ({
+          id: opp.id,
+          code: opp.code,
+          description: opp.description
+        }))
+      );
+      setMappings(
+        (matrix.mappings || []).filter((m: any) => m.hasMaping).map((m: any) => ({
+          id: 0,
+          resultadoAprendizajeId: m.raId,
+          oppId: m.oppId,
+          justificacion: '',
+          fechaCreacion: '',
+          fechaModificacion: ''
+        }))
+      );
     } catch (error) {
       console.error('Error cargando datos de la matriz:', error);
-      // En caso de error, usar listas vacías
       setRaList([]);
       setOppList([]);
       setMappings([]);

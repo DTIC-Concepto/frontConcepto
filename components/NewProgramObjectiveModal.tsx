@@ -34,9 +34,25 @@ export default function NewProgramObjectiveModal({
   const handleSubmit = async () => {
     try {
       setIsLoading(true);
-
-      // TODO: Hacer dinámico en el futuro - por ahora hardcodeado  
-      const carreraId = 1;
+      
+      // Obtener carreraId directamente del usuario en localStorage
+      let carreraId: number | null = null;
+      try {
+        const rawUser = typeof window !== 'undefined' ? localStorage.getItem('auth_user') : null;
+        if (rawUser) {
+          const parsedUser = JSON.parse(rawUser);
+          carreraId = parsedUser?.carrera?.id ?? parsedUser?.carreraId ?? null;
+        }
+      } catch (e) {
+        // Silenciar error de acceso/parsing
+      }
+      if (!carreraId) {
+        NotificationService.error(
+          'Error de usuario',
+          'No se encontró la carrera asociada al usuario.'
+        );
+        return;
+      }
 
       // Validar campos
       const errors = ProgramObjectivesService.validateObjective({

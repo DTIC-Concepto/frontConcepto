@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import AcademicRoute from "@/components/AcademicRoute";
 import { Search, ChevronLeft, ChevronRight, Filter, X, Save, Loader2 } from "lucide-react";
-import { LearningOutcomesService, type LearningOutcome } from "@/lib/learning-outcomes";
+import { type LearningOutcome } from "@/lib/learning-outcomes";
 import { type ProgramObjective } from "@/lib/program-objectives";
 
 const ITEMS_PER_PAGE = 5;
@@ -32,13 +32,24 @@ export default function SeleccionRA() {
     }
   }, [router]);
 
-  // Cargar datos reales del backend
+  // Cargar RAs disponibles para el OPP seleccionado
   useEffect(() => {
     const loadRAData = async () => {
+      if (!selectedOPP) return;
       try {
         setLoading(true);
         setError(null);
-        const data = await LearningOutcomesService.getLearningOutcomes();
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`/api/mappings/available-ras/opp/${selectedOPP.id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+          },
+        });
+        if (!response.ok) {
+          throw new Error('Error al obtener resultados de aprendizaje disponibles');
+        }
+        const data = await response.json();
         setRaList(data);
       } catch (error) {
         console.error('Error cargando RAs:', error);
@@ -47,9 +58,8 @@ export default function SeleccionRA() {
         setLoading(false);
       }
     };
-
     loadRAData();
-  }, []);
+  }, [selectedOPP]);
 
   const filteredRAs = useMemo(() => {
     return raList.filter(ra => {

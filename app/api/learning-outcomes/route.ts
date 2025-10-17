@@ -13,13 +13,29 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Hacer peticiones iterativas para obtener todos los datos
+  // Obtener carreraId, tipo y search del query string
+  const { searchParams } = new URL(request.url);
+  const carreraId = searchParams.get('carreraId');
+  const tipo = searchParams.get('tipo') || 'GENERAL';
+  const search = searchParams.get('search') || '';
+
     let allData: any[] = [];
     let page = 1;
     let hasMore = true;
 
     while (hasMore) {
-      const response = await fetch(`${BACKEND_URL}/learning-outcomes?page=${page}`, {
+      // Construir la URL con carreraId, tipo y search
+      let backendUrl = `${BACKEND_URL}/learning-outcomes?page=${page}`;
+      if (carreraId) {
+        backendUrl += `&carreraId=${encodeURIComponent(carreraId)}`;
+      }
+      if (tipo) {
+        backendUrl += `&tipo=${encodeURIComponent(tipo)}`;
+      }
+      if (search) {
+        backendUrl += `&search=${encodeURIComponent(search)}`;
+      }
+      const response = await fetch(backendUrl, {
         method: 'GET',
         headers: {
           'Authorization': authorization,
@@ -40,13 +56,11 @@ export async function GET(request: NextRequest) {
       // El backend devuelve {data: Array, total: number, ...}
       if (data && Array.isArray(data.data)) {
         allData = [...allData, ...data.data];
-        
         // Verificar si hay más páginas
         const total = data.total || 0;
         const currentCount = allData.length;
         hasMore = currentCount < total;
         page++;
-        
         console.log(`Learning Outcomes página ${page - 1}: ${data.data.length} items, total acumulado: ${currentCount}/${total}`);
       } else if (Array.isArray(data)) {
         // Si el backend devuelve directamente un array

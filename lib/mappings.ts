@@ -1,4 +1,23 @@
+
+
+
 import { AuthService } from './auth';
+
+// Obtener matriz OPP-RA por carreraId
+export async function getOppRaMatrix(carreraId: number) {
+  try {
+    const response = await AuthService.authenticatedFetch(`/api/mappings/opp-ra/matrix/${carreraId}`, {
+      method: 'GET',
+    });
+    if (!response.ok) {
+      throw new Error(`Error ${response.status}: ${response.statusText}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error obteniendo matriz OPP-RA:', error);
+    throw error;
+  }
+}
 
 // Types para mappings OPP-RA
 export interface OppRaMapping {

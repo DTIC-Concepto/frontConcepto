@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { UserCareerService } from "@/lib/user-career";
 import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import AcademicRoute from "@/components/AcademicRoute";
@@ -41,9 +42,8 @@ export default function MatrizRAvsEURACE() {
   const [euraceList, setEuraceList] = useState<MatrixEURACE[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Estado para carreraId - actualmente hardcodeado a 1, pero fácil de cambiar
-  // TODO: Obtener carreraId desde el contexto de usuario o props
-  const [carreraId, setCarreraId] = useState<number>(1);
+  // Estado para carreraId - ahora dinámico según el usuario autenticado
+  const [carreraId, setCarreraId] = useState<number | null>(UserCareerService.getUserCarreraId());
 
   // Estados para el modal de creación de mapeo
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -64,7 +64,7 @@ export default function MatrizRAvsEURACE() {
   // Función para recargar datos (llamar después de crear relaciones)
   const reloadData = useCallback(async () => {
     try {
-      const existingMappings = await MappingsService.getEurAceMappings(carreraId);
+  const existingMappings = await MappingsService.getEurAceMappings(carreraId ?? undefined);
       setMappings(existingMappings);
     } catch (error) {
       console.error('Error recargando mappings:', error);
@@ -82,42 +82,42 @@ export default function MatrizRAvsEURACE() {
   const loadMatrixData = useCallback(async () => {
     try {
       setIsLoading(true);
-      
-      // Cargar RA (Learning Outcomes) - primero RG luego RE
-      const learningOutcomes = await LearningOutcomesService.getLearningOutcomes();
-      const raData: MatrixRA[] = learningOutcomes
-        .map((ra: LearningOutcome) => ({
-          id: ra.id!,
-          code: ra.codigo,
-          description: ra.descripcion,
-          type: ra.tipo
+      const token = localStorage.getItem('auth_token');
+  const response = await fetch(`/api/mappings/ra-eur-ace/matrix/${carreraId ?? ''}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+      if (!response.ok) throw new Error('Error al obtener matriz RA-EURACE');
+      const data = await response.json();
+      setRaList(
+        (data.ras || []).map((ra: any) => ({
+          id: ra.id,
+          code: ra.code,
+          description: ra.description,
+          type: ra.type
         }))
-        .sort((a: MatrixRA, b: MatrixRA) => {
-          // Primero GENERAL (RG), luego ESPECIFICO (RE)
-          if (a.type === 'GENERAL' && b.type === 'ESPECIFICO') return -1;
-          if (a.type === 'ESPECIFICO' && b.type === 'GENERAL') return 1;
-          return a.code.localeCompare(b.code);
-        });
-
-      // Cargar EUR-ACE Criteria
-      const eurAceCriteria = await EurAceCriteriaService.getEurAceCriteria();
-      const euraceData: MatrixEURACE[] = eurAceCriteria
-        .map((eurace: EurAceCriterion) => ({
-          id: eurace.id!,
-          code: eurace.codigo,
-          description: eurace.descripcion
+      );
+      setEuraceList(
+        (data.eurAceCriteria || []).map((eurace: any) => ({
+          id: eurace.id,
+          code: eurace.code,
+          description: eurace.description
         }))
-        .sort((a: MatrixEURACE, b: MatrixEURACE) => a.code.localeCompare(b.code));
-
-      setRaList(raData);
-      setEuraceList(euraceData);
-      
-      // Cargar mappings existentes usando la carreraId del estado
-      const existingMappings = await MappingsService.getEurAceMappings(carreraId);
-      setMappings(existingMappings);
+      );
+      setMappings(
+        (data.mappings || []).filter((m: any) => m.hasMapping || m.hasMaping).map((m: any) => ({
+          id: 0,
+          resultadoAprendizajeId: m.raId,
+          eurAceId: m.eurAceId,
+          justificacion: '',
+          fechaCreacion: '',
+          fechaModificacion: ''
+        }))
+      );
     } catch (error) {
       console.error('Error cargando datos de la matriz:', error);
-      // En caso de error, usar listas vacías
       setRaList([]);
       setEuraceList([]);
       setMappings([]);

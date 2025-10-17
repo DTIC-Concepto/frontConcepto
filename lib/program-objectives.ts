@@ -22,10 +22,19 @@ export class ProgramObjectivesService {
   static async getProgramObjectives(): Promise<ProgramObjective[]> {
     try {
       console.log('Iniciando petición GET a Program Objectives...');
-      const response = await AuthService.authenticatedFetch('/api/program-objectives', {
+      // Obtener carreraId del usuario autenticado
+      const user = AuthService.getUser();
+      console.log('Usuario obtenido en getProgramObjectives:', user);
+      const carreraId = user?.carrera?.id;
+      if (!carreraId) {
+        throw new Error('No se encontró el ID de carrera del usuario.');
+      }
+      const url = `/api/program-objectives?carreraId=${encodeURIComponent(carreraId)}`;
+      const response = await AuthService.authenticatedFetch(url, {
         method: 'GET',
       });
 
+      
       console.log('Respuesta Program Objectives:', response.status, response.ok);
 
       if (!response.ok) {
@@ -60,9 +69,19 @@ export class ProgramObjectivesService {
    */
   static async createProgramObjective(objective: CreateProgramObjectiveRequest): Promise<ProgramObjective> {
     try {
+      // Obtener carreraId del usuario autenticado
+      const user = AuthService.getUser();
+      console.log('Usuario obtenido en createProgramObjective:', user);
+      const carreraId = user?.carrera?.id;
+      console.log('Carrera ID para crear objetivo:', carreraId);
+      if (!carreraId) {
+        throw new Error('No se encontró el ID de carrera del usuario.');
+      }
+      // Sobrescribir carreraId en el body
+      const bodyToSend = { ...objective, carreraId };
       const response = await AuthService.authenticatedFetch('/api/program-objectives', {
         method: 'POST',
-        body: JSON.stringify(objective),
+        body: JSON.stringify(bodyToSend),
       });
 
       if (!response.ok) {

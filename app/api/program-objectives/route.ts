@@ -13,13 +13,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Hacer peticiones iterativas para obtener todos los datos
+    // Obtener carreraId del query string
+    const { searchParams } = new URL(request.url);
+    const carreraId = searchParams.get('carreraId');
+
     let allData: any[] = [];
     let page = 1;
     let hasMore = true;
 
     while (hasMore) {
-      const response = await fetch(`${BACKEND_URL}/program-objectives?page=${page}`, {
+      // Construir la URL con carreraId si existe
+      let backendUrl = `${BACKEND_URL}/program-objectives?page=${page}`;
+      if (carreraId) {
+        backendUrl += `&carreraId=${encodeURIComponent(carreraId)}`;
+      }
+      const response = await fetch(backendUrl, {
         method: 'GET',
         headers: {
           'Authorization': authorization,
@@ -40,13 +48,11 @@ export async function GET(request: NextRequest) {
       // El backend devuelve {data: Array, total: number, ...}
       if (data && Array.isArray(data.data)) {
         allData = [...allData, ...data.data];
-        
         // Verificar si hay más páginas
         const total = data.total || 0;
         const currentCount = allData.length;
         hasMore = currentCount < total;
         page++;
-        
         console.log(`Program Objectives página ${page - 1}: ${data.data.length} items, total acumulado: ${currentCount}/${total}`);
       } else if (Array.isArray(data)) {
         // Si el backend devuelve directamente un array
@@ -64,7 +70,6 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('Program Objectives GET successful: Total de', allData.length, 'objetivos');
-    
     // Devolver en el mismo formato que el backend
     return NextResponse.json({
       data: allData,
@@ -91,8 +96,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Obtener carreraId del query string
+    const { searchParams } = new URL(request.url);
+    const carreraId = searchParams.get('carreraId');
+
     // Obtener el cuerpo de la petición
     const body = await request.json();
+
+    // Si carreraId está en el query y no en el body, agregarlo
+    let bodyToSend = { ...body };
+    if (carreraId && !bodyToSend.carreraId) {
+      bodyToSend.carreraId = Number(carreraId);
+    }
 
     // Hacer la petición al backend
     const response = await fetch(`${BACKEND_URL}/program-objectives`, {
@@ -101,7 +116,7 @@ export async function POST(request: NextRequest) {
         'Authorization': authorization,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(bodyToSend),
     });
 
     const data = await response.json();

@@ -37,13 +37,31 @@ export default function NewLearningOutcomeModal({
     try {
       setIsLoading(true);
 
-      // TODO: Hacer dinámico en el futuro - por ahora hardcodeado
-      const carreraId = 1;
+      // Obtener carreraId directamente del usuario en localStorage
+      let carreraId: number | null = null;
+      try {
+        const rawUser = typeof window !== 'undefined' ? localStorage.getItem('auth_user') : null;
+        if (rawUser) {
+          const parsedUser = JSON.parse(rawUser);
+          carreraId = parsedUser?.carrera?.id ?? parsedUser?.carreraId ?? null;
+        }
+      } catch (e) {
+        // Silenciar error de acceso/parsing
+      }
+
+      if (!carreraId) {
+        NotificationService.error(
+          'Error de usuario',
+          'No se encontró la carrera asociada al usuario.'
+        );
+        setIsLoading(false);
+        return;
+      }
 
       // Validar campos
       const errors = LearningOutcomesService.validateLearningOutcome({
         ...formData,
-        carreraId
+        carreraId: carreraId
       });
 
       if (errors.length > 0) {
@@ -51,12 +69,13 @@ export default function NewLearningOutcomeModal({
           'Datos inválidos',
           errors.join(', ')
         );
+        setIsLoading(false);
         return;
       }
 
       const outcomeData: CreateLearningOutcomeRequest = {
         ...formData,
-        carreraId
+        carreraId: carreraId
       };
 
       console.log('Creando resultado de aprendizaje con datos:', outcomeData);

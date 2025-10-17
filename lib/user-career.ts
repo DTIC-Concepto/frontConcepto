@@ -29,11 +29,11 @@ export class UserCareerService {
       const user = JSON.parse(authUser);
       const userRole = user.rol;
 
-      console.log('Usuario desde localStorage:', user);
-      console.log('Rol detectado:', userRole);
+      //console.log('Usuario desde localStorage:', user);
+      //console.log('Rol detectado:', userRole);
 
       return {
-        carreraId: user.carreraId || null,
+        carreraId: (user.carrera && typeof user.carrera.id === 'number' ? user.carrera.id : user.carreraId) || null,
         carreraNombre: user.carreraNombre || null,
         facultadId: user.facultadId || null,
         facultadNombre: user.facultadNombre || null,
@@ -77,8 +77,8 @@ export class UserCareerService {
    * Obtiene el ID de carrera del usuario para usar en los POST
    */
   static getUserCarreraId(): number | null {
-    const careerInfo = this.getUserCareerInfo();
-    return careerInfo.carreraId;
+  const careerInfo = this.getUserCareerInfo();
+  return careerInfo.carreraId;
   }
 
   /**

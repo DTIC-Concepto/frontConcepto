@@ -30,10 +30,14 @@ export default function ResultadosAprendizaje() {
   // Configuración de paginación
   const itemsPerPage = 5;
 
-  // Cargar resultados al montar el componente
+  // Cargar resultados al montar el componente y al cambiar de tab
   useEffect(() => {
-    loadOutcomes();
-  }, []);
+    if (activeTab === "generales") {
+      getFilteredResults("GENERAL");
+    } else {
+      getFilteredResults("ESPECIFICO");
+    }
+  }, [activeTab]);
 
   const loadOutcomes = async () => {
     try {
@@ -68,28 +72,41 @@ export default function ResultadosAprendizaje() {
   };
 
   const handleModalSuccess = () => {
-    loadOutcomes(); // Recargar la lista después de crear
+    // Recargar solo el tab activo después de crear
+    if (activeTab === "generales") {
+      getFilteredResults("GENERAL");
+    } else {
+      getFilteredResults("ESPECIFICO");
+    }
     setIsModalOpen(false);
   };
 
   // Filtrar resultados según el tab activo y búsqueda
-  const getFilteredResults = (tipo: "GENERAL" | "ESPECIFICO") => {
+  const getFilteredResults = async (tipo: "GENERAL" | "ESPECIFICO") => {
     const searchTerm = tipo === "GENERAL" ? searchTermGenerales : searchTermEspecificos;
-    const filtered = outcomes.filter(outcome => {
-      const matchesSearch = outcome.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           outcome.descripcion.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesSearch && outcome.tipo === tipo;
-    });
-    console.log(`Filtrando tipo ${tipo}:`, filtered.length, 'resultados');
-    return filtered;
+    setIsLoading(true);
+    try {
+      const outcomesData = await LearningOutcomesService.getLearningOutcomes(tipo, searchTerm);
+      setOutcomes(outcomesData);
+      return outcomesData;
+    } catch (error) {
+      console.error('Error al filtrar resultados:', error);
+      NotificationService.error(
+        'Error al filtrar resultados',
+        'No se pudieron filtrar los resultados de aprendizaje. Intenta nuevamente.'
+      );
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Función para obtener resultados paginados para cada tab
   const getPaginatedResults = (tipo: "GENERAL" | "ESPECIFICO") => {
-    const filteredResults = getFilteredResults(tipo);
     const currentPage = tipo === "GENERAL" ? currentPageGenerales : currentPageEspecificos;
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
+    const filteredResults = outcomes.filter(outcome => outcome.tipo === tipo);
     return {
       data: filteredResults.slice(startIndex, endIndex),
       totalPages: Math.ceil(filteredResults.length / itemsPerPage),
@@ -98,15 +115,17 @@ export default function ResultadosAprendizaje() {
   };
 
   // Resetear página cuando cambie el filtro de Generales
-  const handleSearchChangeGenerales = (value: string) => {
+  const handleSearchChangeGenerales = async (value: string) => {
     setSearchTermGenerales(value);
     setCurrentPageGenerales(1);
+    await getFilteredResults("GENERAL");
   };
 
   // Resetear página cuando cambie el filtro de Específicos
-  const handleSearchChangeEspecificos = (value: string) => {
+  const handleSearchChangeEspecificos = async (value: string) => {
     setSearchTermEspecificos(value);
     setCurrentPageEspecificos(1);
+    await getFilteredResults("ESPECIFICO");
   };
 
   const ResultsTable = ({ data, searchTerm }: { data: LearningOutcome[], searchTerm: string }) => (

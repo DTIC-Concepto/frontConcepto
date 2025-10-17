@@ -26,10 +26,32 @@ export class LearningOutcomesService {
   /**
    * Obtiene todos los resultados de aprendizaje
    */
-  static async getLearningOutcomes(): Promise<LearningOutcome[]> {
+  static async getLearningOutcomes(tipo: 'GENERAL' | 'ESPECIFICO' = 'GENERAL', search: string = ''): Promise<LearningOutcome[]> {
     try {
       console.log('Iniciando petición GET a Learning Outcomes...');
-      const response = await AuthService.authenticatedFetch('/api/learning-outcomes', {
+      // Obtener carreraId directamente del usuario en localStorage
+      let carreraId: number | null = null;
+      try {
+        const rawUser = typeof window !== 'undefined' ? localStorage.getItem('auth_user') : null;
+        console.log('LearningOutcomesService: usuario bruto desde localStorage:', rawUser);
+        if (rawUser) {
+          try {
+            const parsedUser = JSON.parse(rawUser);
+            console.log('LearningOutcomesService: usuario parseado:', parsedUser);
+            carreraId = parsedUser?.carrera?.id ?? parsedUser?.carreraId ?? null;
+            console.log('LearningOutcomesService: carreraId extraído:', carreraId);
+          } catch (e) {
+            console.error('LearningOutcomesService: error al parsear usuario:', e);
+          }
+        }
+      } catch (e) {
+        console.error('LearningOutcomesService: error accediendo a localStorage:', e);
+      }
+      if (!carreraId) {
+        throw new Error('No se encontró el ID de carrera del usuario.');
+      }
+  const url = `/api/learning-outcomes?carreraId=${encodeURIComponent(carreraId)}&tipo=${encodeURIComponent(tipo)}&search=${encodeURIComponent(search)}`;
+      const response = await AuthService.authenticatedFetch(url, {
         method: 'GET',
       });
 

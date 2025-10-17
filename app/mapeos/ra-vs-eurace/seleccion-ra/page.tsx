@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from "react";
+import { UserCareerService } from "@/lib/user-career";
 import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import AcademicRoute from "@/components/AcademicRoute";
@@ -96,24 +97,39 @@ export default function SeleccionRA() {
     }
   }, [router]);
 
-  // Cargar datos reales del backend
+  // Cargar RAs disponibles para el criterio EUR-ACE seleccionado y carreraId del usuario
   useEffect(() => {
-    const loadRAData = async () => {
+    const loadAvailableRAs = async () => {
+      if (!selectedEURACE) return;
       try {
         setLoading(true);
         setError(null);
-        const data = await LearningOutcomesService.getLearningOutcomes();
-        setRaList(data);
+        const carreraId = UserCareerService.getUserCarreraId();
+        if (!carreraId) {
+          setError('No se encontró la carrera del usuario.');
+          setLoading(false);
+          return;
+        }
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`/api/mappings/available-ras/eur-ace/${selectedEURACE.id}?carreraId=${carreraId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+          },
+        });
+        if (!response.ok) throw new Error('Error al obtener los RAs disponibles');
+        const data = await response.json();
+        // El backend debe devolver un array de RAs en data.ras o data (según formato)
+        setRaList(Array.isArray(data) ? data : (data.ras || []));
       } catch (error) {
-        console.error('Error cargando RAs:', error);
-        setError('Error al cargar los resultados de aprendizaje. Intente nuevamente.');
+        console.error('Error cargando RAs disponibles:', error);
+        setError('Error al cargar los resultados de aprendizaje disponibles. Intente nuevamente.');
       } finally {
         setLoading(false);
       }
     };
-
-    loadRAData();
-  }, []);
+    loadAvailableRAs();
+  }, [selectedEURACE]);
 
   const filteredRAs = useMemo(() => {
     return raList.filter(ra => {
