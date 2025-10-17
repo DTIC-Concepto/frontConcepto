@@ -18,8 +18,8 @@ export interface CreateLearningOutcomeRequest {
 }
 
 export const LEARNING_OUTCOME_TYPES = [
-  { value: 'GENERAL', label: 'General' },
-  { value: 'ESPECIFICO', label: 'Específico' }
+  { value: 'GENERAL', label: 'General (RG)' },
+  { value: 'ESPECIFICO', label: 'Específico (RE)' }
 ] as const;
 
 export class LearningOutcomesService {

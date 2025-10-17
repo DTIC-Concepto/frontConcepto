@@ -320,7 +320,7 @@ export default function MatrizRAvsEURACE() {
                     
                     return (
                       <div 
-                        key={`${eurace.code}-${ra.code}`}
+                        key={`cell-${eurace.id}-${ra.id}`}
                         className={`absolute rounded border border-gray-200 flex items-center justify-center transition-colors ${
                           hasRelation 
                             ? 'bg-white cursor-default' 
@@ -379,7 +379,7 @@ export default function MatrizRAvsEURACE() {
                 >
                   {raList.map((ra: MatrixRA, index: number) => (
                     <div 
-                      key={ra.code}
+                      key={`header-ra-${ra.id}`}
                       className="absolute bg-[#E5E7EB] rounded border border-gray-200 flex items-center justify-center gap-1"
                       style={{
                         left: index * CELL_WIDTH,
@@ -415,7 +415,7 @@ export default function MatrizRAvsEURACE() {
                 >
                   {euraceList.map((eurace: MatrixEURACE, index: number) => (
                     <div 
-                      key={eurace.code}
+                      key={`header-eurace-${eurace.id}`}
                       className="absolute bg-[#2D61A4] text-white rounded border border-gray-300 flex items-center justify-center px-2 gap-1"
                       style={{
                         left: 2,

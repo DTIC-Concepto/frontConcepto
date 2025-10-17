@@ -59,6 +59,7 @@ export default function NewLearningOutcomeModal({
         carreraId
       };
 
+      console.log('Creando resultado de aprendizaje con datos:', outcomeData);
       await LearningOutcomesService.createLearningOutcome(outcomeData);
 
       NotificationService.success(

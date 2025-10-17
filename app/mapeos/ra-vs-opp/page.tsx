@@ -297,7 +297,7 @@ export default function MatrizRAvsOPP() {
                 {oppList.map((opp: MatrixOPP, rowIndex: number) => 
                   raList.map((ra: MatrixRA, colIndex: number) => (
                     <div 
-                      key={`${opp.code}-${ra.code}`}
+                      key={`cell-${opp.id}-${ra.id}`}
                       className={`absolute bg-white rounded border border-gray-200 flex items-center justify-center transition-colors ${
                         hasRelationship(opp.code, ra.code) 
                           ? 'cursor-default' 
@@ -355,7 +355,7 @@ export default function MatrizRAvsOPP() {
                 >
                   {raList.map((ra: MatrixRA, index: number) => (
                     <div 
-                      key={ra.code}
+                      key={`header-ra-${ra.id}`}
                       className="absolute bg-[#E5E7EB] rounded border border-gray-200 flex items-center justify-center gap-1"
                       style={{
                         left: index * CELL_WIDTH,
@@ -391,7 +391,7 @@ export default function MatrizRAvsOPP() {
                 >
                   {oppList.map((opp: MatrixOPP, index: number) => (
                     <div 
-                      key={opp.code}
+                      key={`header-opp-${opp.id}`}
                       className="absolute bg-[#2D61A4] text-white rounded border border-gray-300 flex items-center justify-center px-2 gap-1"
                       style={{
                         left: 2,

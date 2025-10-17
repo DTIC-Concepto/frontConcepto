@@ -38,6 +38,10 @@ export default function ResultadosAprendizaje() {
     try {
       setIsLoading(true);
       const outcomesData = await LearningOutcomesService.getLearningOutcomes();
+      console.log('Resultados de aprendizaje cargados:', outcomesData);
+      console.log('Total:', outcomesData.length);
+      console.log('Generales (RG):', outcomesData.filter(o => o.tipo === 'GENERAL').length);
+      console.log('Específicos (RE):', outcomesData.filter(o => o.tipo === 'ESPECIFICO').length);
       setOutcomes(outcomesData);
     } catch (error) {
       console.error('Error al cargar resultados:', error);
@@ -69,11 +73,13 @@ export default function ResultadosAprendizaje() {
 
   // Filtrar resultados según el tab activo y búsqueda
   const getFilteredResults = (tipo: "GENERAL" | "ESPECIFICO") => {
-    return outcomes.filter(outcome => {
+    const filtered = outcomes.filter(outcome => {
       const matchesSearch = outcome.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            outcome.descripcion.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesSearch && outcome.tipo === tipo;
     });
+    console.log(`Filtrando tipo ${tipo}:`, filtered.length, 'resultados');
+    return filtered;
   };
 
   // Función para obtener resultados paginados para cada tab
