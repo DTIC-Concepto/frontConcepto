@@ -20,8 +20,11 @@ export default function AcademicRoute({ children }: AcademicRouteProps) {
       return;
     }
 
-    // Si está autenticado pero no es coordinador ni CEI, mostrar error y redirigir
-    if (user && user.role !== 'COORDINADOR' && user.role !== 'CEI') {
+    // Roles permitidos para acceder a las rutas académicas
+    const allowedRoles = ['COORDINADOR', 'CEI', 'PROFESOR'];
+    
+    // Si está autenticado pero no tiene un rol permitido, mostrar error y redirigir
+    if (user && !allowedRoles.includes(user.role)) {
       NotificationService.error(
         "Acceso Denegado",
         "No tienes permisos para acceder a esta sección."
@@ -31,8 +34,11 @@ export default function AcademicRoute({ children }: AcademicRouteProps) {
     }
   }, [user, isAuthenticated, router]);
 
-  // Solo renderizar el contenido si el usuario es coordinador o CEI
-  if (!isAuthenticated || !user || (user.role !== 'COORDINADOR' && user.role !== 'CEI')) {
+  // Roles permitidos
+  const allowedRoles = ['COORDINADOR', 'CEI', 'PROFESOR'];
+  
+  // Solo renderizar el contenido si el usuario tiene un rol permitido
+  if (!isAuthenticated || !user || !allowedRoles.includes(user.role)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-4">

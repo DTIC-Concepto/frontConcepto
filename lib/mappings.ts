@@ -250,4 +250,73 @@ export class MappingsService {
       throw error;
     }
   }
+
+  // ==================== RAA-RA Mappings ====================
+
+  /**
+   * Obtener mappings RAA-RA filtrados por carreraId y opcionalmente por nivel de aporte
+   */
+  static async getRaaRaMappings(carreraId?: number, nivelAporte?: 'Alto' | 'Medio' | 'Bajo'): Promise<any[]> {
+    try {
+      const params = new URLSearchParams();
+      if (carreraId) params.append('carreraId', carreraId.toString());
+      if (nivelAporte) params.append('nivelAporte', nivelAporte);
+
+      const url = `/api/mappings/raa-ra${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await AuthService.authenticatedFetch(url, {
+        method: 'GET',
+      });
+
+      if (!response.ok) {
+        console.error(`Error obteniendo mappings RAA-RA: ${response.status} ${response.statusText}`);
+        return [];
+      }
+
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    } catch (error) {
+      console.error('Error obteniendo mappings RAA-RA:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Crear mapping RAA-RA (preparado para cuando se implemente el wizard)
+   */
+  static async createRaaRaMapping(mapping: {
+    raaId: number;
+    raId: number;
+    nivelAporte: 'Alto' | 'Medio' | 'Bajo';
+    justificacion?: string;
+  }): Promise<MappingOperationResult> {
+    try {
+      // Transformar el payload para que coincida con lo que espera el backend
+      const backendPayload = {
+        raaId: mapping.raaId,
+        resultadoAprendizajeId: mapping.raId,  // Backend espera "resultadoAprendizajeId", no "raId"
+        nivelAporte: mapping.nivelAporte,
+        justificacion: mapping.justificacion || '',
+        estadoActivo: true  // Campo requerido por el backend
+      };
+      
+      const response = await AuthService.authenticatedFetch('/api/mappings/raa-ra', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(backendPayload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+        return { success: false, error: errorData.error || errorData.message || 'Error al crear mapping' };
+      }
+
+      const data = await response.json();
+      return { success: true, data };
+    } catch (error) {
+      console.error('Error creando mapping RAA-RA:', error);
+      return { success: false, error: 'Error de conexión con el servidor' };
+    }
+  }
 }

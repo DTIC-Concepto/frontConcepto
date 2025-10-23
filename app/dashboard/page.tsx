@@ -21,6 +21,15 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingActivity, setIsLoadingActivity] = useState(true);
 
+  // Redirigir a Asignaturas si es COORDINADOR o PROFESOR
+  useEffect(() => {
+    const userRole = AuthService.getUserRole();
+    if (userRole === 'COORDINADOR' || userRole === 'PROFESOR') {
+      router.replace('/asignaturas');
+      return;
+    }
+  }, [router]);
+
   // Cargar estadísticas al montar el componente
   useEffect(() => {
     loadStats();

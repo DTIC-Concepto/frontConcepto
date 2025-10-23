@@ -19,6 +19,30 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
 
+  // Verificar si ya hay una sesión activa al cargar la página
+  useEffect(() => {
+    const checkExistingSession = () => {
+      try {
+        const token = AuthService.getToken();
+        const userRole = AuthService.getUserRole();
+        
+        if (token && userRole) {
+          // Ya hay una sesión activa, redirigir según el rol
+          if (userRole === 'COORDINADOR' || userRole === 'PROFESOR') {
+            router.replace('/asignaturas');
+          } else {
+            router.replace('/dashboard');
+          }
+        }
+      } catch (error) {
+        // Si hay error al verificar, no hacer nada (dejar en login)
+        console.log('No hay sesión activa');
+      }
+    };
+    
+    checkExistingSession();
+  }, [router]);
+
   // Cerrar dropdown cuando se hace clic fuera
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -80,8 +104,12 @@ export default function LoginPage() {
         "Has iniciado sesión correctamente."
       );
 
-      // Redirigir al dashboard
-      router.push("/dashboard");
+      // Redirigir según el rol del usuario
+      if (userRole === 'COORDINADOR' || userRole === 'PROFESOR') {
+        router.push("/asignaturas");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (error) {
       // Mostrar error de credenciales inválidas
       NotificationService.error(
