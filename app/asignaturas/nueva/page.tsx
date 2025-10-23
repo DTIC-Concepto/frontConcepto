@@ -224,12 +224,12 @@ export default function AsignaturaForm() {
                         <SelectValue placeholder="Seleccione una opción" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="Unidad Básica">Unidad Básica</SelectItem>
                         <SelectItem value="Unidad Profesional">
                           Unidad Profesional
                         </SelectItem>
-                        <SelectItem value="Unidad Básica">Unidad Básica</SelectItem>
-                        <SelectItem value="Unidad de Titulación">
-                          Unidad de Titulación
+                        <SelectItem value="Unidad de Integración Curricular">
+                          Unidad de Integración Curricular
                         </SelectItem>
                       </SelectContent>
                     </Select>
@@ -255,7 +255,8 @@ export default function AsignaturaForm() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Obligatoria">Obligatoria</SelectItem>
-                        <SelectItem value="Optativa">Optativa</SelectItem>
+                        <SelectItem value="Itinerario">Itinerario</SelectItem>
+                        <SelectItem value="Extracurricular">Extracurricular</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

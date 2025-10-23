@@ -20,7 +20,7 @@ export default function NewRaaModal({
 }: NewRaaModalProps) {
   const [formData, setFormData] = useState({
     codigo: "",
-    tipo: "" as "" | "Conocimientos" | "Destrezas" | "Valores y aptitudes",
+    tipo: "" as "" | "Conocimientos" | "Destrezas" | "Valores y actitudes",
     descripcion: "",
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -62,7 +62,7 @@ export default function NewRaaModal({
 
       const raaData: CreateRaaRequest = {
         codigo: formData.codigo.trim(),
-        tipo: formData.tipo as "Conocimientos" | "Destrezas" | "Valores y aptitudes",
+        tipo: formData.tipo as "Conocimientos" | "Destrezas" | "Valores y actitudes",
         descripcion: formData.descripcion.trim(),
         asignaturaId,
         estadoActivo: true

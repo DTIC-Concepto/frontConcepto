@@ -261,10 +261,10 @@ export default function Layout({ children }: LayoutProps) {
                     <span className="truncate">CE vs RA</span>
                   </Link>
                   <Link
-                    href="/construccion"
+                    href="/mapeos/raa-vs-ra"
                     className={cn(
                       "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                      pathname === "/construccion"
+                      pathname === "/mapeos/raa-vs-ra"
                         ? "bg-[#F3F4F6] text-[#1E2128] font-medium"
                         : "text-[#565D6D] hover:bg-[#F3F4F6]"
                     )}

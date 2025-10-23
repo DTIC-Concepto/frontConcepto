@@ -3,7 +3,7 @@ import { AuthService } from './auth';
 export interface Raa {
   id?: number;
   codigo: string;
-  tipo: 'Conocimientos' | 'Destrezas' | 'Valores y aptitudes';
+  tipo: 'Conocimientos' | 'Destrezas' | 'Valores y actitudes';
   descripcion: string;
   asignaturaId: number;
   estadoActivo?: boolean;
@@ -13,7 +13,7 @@ export interface Raa {
 
 export interface CreateRaaRequest {
   codigo: string;
-  tipo: 'Conocimientos' | 'Destrezas' | 'Valores y aptitudes';
+  tipo: 'Conocimientos' | 'Destrezas' | 'Valores y actitudes';
   descripcion: string;
   asignaturaId: number;
   estadoActivo: boolean;
@@ -22,7 +22,7 @@ export interface CreateRaaRequest {
 export const RAA_TYPES = [
   { value: 'Conocimientos', label: 'Conocimientos' },
   { value: 'Destrezas', label: 'Destrezas' },
-  { value: 'Valores y aptitudes', label: 'Valores y aptitudes' }
+  { value: 'Valores y actitudes', label: 'Valores y actitudes' }
 ] as const;
 
 export class RaaService {
@@ -99,7 +99,7 @@ export class RaaService {
 
     if (!raa.tipo) {
       errors.push('El tipo es requerido');
-    } else if (!['Conocimientos', 'Destrezas', 'Valores y aptitudes'].includes(raa.tipo)) {
+    } else if (!['Conocimientos', 'Destrezas', 'Valores y actitudes'].includes(raa.tipo)) {
       errors.push('Tipo inválido');
     }
 
