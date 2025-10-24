@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Layout from "@/components/Layout";
 import AcademicRoute from "@/components/AcademicRoute";
@@ -27,6 +28,7 @@ import NotificationService from "@/lib/notifications";
 import Pagination from "@/components/Pagination";
 
 export default function Asignaturas() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [nivelReferencial, setNivelReferencial] = useState("");
   const [creditos, setCreditos] = useState("");
@@ -214,6 +216,11 @@ export default function Asignaturas() {
                               size="icon"
                               className="h-8 w-8 text-[#003366] hover:text-[#003366] hover:bg-[#F3F4F6]"
                               title="Editar asignatura"
+                              onClick={() => {
+                                // Guardar datos de asignatura en localStorage para edición
+                                localStorage.setItem('edit_asignatura', JSON.stringify(asignatura));
+                                router.push('/asignaturas/nueva');
+                              }}
                             >
                               <Edit className="w-4 h-4" />
                             </Button>

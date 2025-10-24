@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import AcademicRoute from "@/components/AcademicRoute";
@@ -21,6 +21,9 @@ import NotificationService from "@/lib/notifications";
 
 export default function AsignaturaForm() {
   const router = useRouter();
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingAsignaturaId, setEditingAsignaturaId] = useState<number | null>(null);
+  const [savedCarreraIds, setSavedCarreraIds] = useState<number[]>([]);
   const [formData, setFormData] = useState({
     codigo: "",
     nombre: "",
@@ -33,34 +36,85 @@ export default function AsignaturaForm() {
   });
   const [loading, setLoading] = useState(false);
 
+  // Cargar datos si estamos en modo edición
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const editData = localStorage.getItem('edit_asignatura');
+      if (editData) {
+        try {
+          const asignatura = JSON.parse(editData);
+          console.log('Cargando asignatura para edición:', asignatura);
+          setIsEditMode(true);
+          setEditingAsignaturaId(asignatura.id);
+          
+          // Guardar los carreraIds originales
+          if (asignatura.carreraIds && Array.isArray(asignatura.carreraIds)) {
+            setSavedCarreraIds(asignatura.carreraIds);
+          } else {
+            // Si no vienen carreraIds, usar el del usuario actual
+            const rawUser = localStorage.getItem('auth_user');
+            if (rawUser) {
+              const parsedUser = JSON.parse(rawUser);
+              const carreraId = parsedUser?.carrera?.id ?? parsedUser?.carreraId;
+              if (carreraId) {
+                setSavedCarreraIds([carreraId]);
+              }
+            }
+          }
+          
+          setFormData({
+            codigo: asignatura.codigo || "",
+            nombre: asignatura.nombre || "",
+            descripcion: asignatura.descripcion || "",
+            unidadCurricular: asignatura.unidadCurricular || "",
+            tipoAsignatura: asignatura.tipoAsignatura || "",
+            pensum: asignatura.pensum?.toString() || "",
+            creditos: asignatura.creditos?.toString() || "",
+            nivelReferencial: asignatura.nivelReferencial?.toString() || "",
+          });
+          // Limpiar localStorage después de cargar
+          localStorage.removeItem('edit_asignatura');
+        } catch (error) {
+          console.error('Error cargando datos de edición:', error);
+        }
+      }
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Obtener carreraId directamente del usuario en localStorage
-    let carreraId: number | null = null;
-    try {
-      const rawUser = typeof window !== 'undefined' ? localStorage.getItem('auth_user') : null;
-      if (rawUser) {
-        try {
+    // Determinar los carreraIds a usar
+    let carreraIdsToUse: number[] = [];
+    
+    if (isEditMode && savedCarreraIds.length > 0) {
+      // En modo edición, usar los carreraIds guardados
+      carreraIdsToUse = savedCarreraIds;
+    } else {
+      // En modo creación, obtener carreraId del usuario
+      try {
+        const rawUser = typeof window !== 'undefined' ? localStorage.getItem('auth_user') : null;
+        if (rawUser) {
           const parsedUser = JSON.parse(rawUser);
-          carreraId = parsedUser?.carrera?.id ?? parsedUser?.carreraId ?? null;
-        } catch (e) {
-          console.error('Error al parsear usuario:', e);
+          const carreraId = parsedUser?.carrera?.id ?? parsedUser?.carreraId ?? null;
+          if (carreraId) {
+            carreraIdsToUse = [carreraId];
+          }
         }
+      } catch (e) {
+        console.error('Error accediendo a localStorage:', e);
       }
-    } catch (e) {
-      console.error('Error accediendo a localStorage:', e);
     }
     
-    if (!carreraId) {
+    if (carreraIdsToUse.length === 0) {
       NotificationService.error(
         'Error',
-        'No se encontró información de la carrera del usuario'
+        'No se encontró información de la carrera'
       );
       return;
     }
 
-    // Preparar datos para el POST
+    // Preparar datos para el POST/PATCH
     const asignaturaData = {
       codigo: formData.codigo.trim(),
       nombre: formData.nombre.trim(),
@@ -70,9 +124,11 @@ export default function AsignaturaForm() {
       unidadCurricular: formData.unidadCurricular,
       pensum: parseInt(formData.pensum),
       nivelReferencial: parseInt(formData.nivelReferencial),
-      carreraIds: [carreraId],
+      carreraIds: carreraIdsToUse,
       estadoActivo: true,
     };
+
+    console.log('Datos a enviar:', isEditMode ? 'PATCH' : 'POST', asignaturaData);
 
     // Validar datos
     const errors = AsignaturasService.validateAsignatura(asignaturaData);
@@ -86,33 +142,50 @@ export default function AsignaturaForm() {
 
     try {
       setLoading(true);
-      const createdAsignatura = await AsignaturasService.createAsignatura(asignaturaData);
       
-      // Guardar ID de la asignatura creada para usarlo en la pestaña de RAA
-      if (createdAsignatura.id) {
-        localStorage.setItem('current_asignatura_id', createdAsignatura.id.toString());
+      if (isEditMode && editingAsignaturaId) {
+        // Actualizar asignatura existente
+        const updatedAsignatura = await AsignaturasService.updateAsignatura(editingAsignaturaId, asignaturaData);
+        
+        NotificationService.success(
+          'Asignatura actualizada',
+          'La asignatura ha sido actualizada correctamente'
+        );
+        
+        // Volver a la lista de asignaturas después de un breve delay
+        setTimeout(() => {
+          router.push('/asignaturas');
+        }, 1000);
+      } else {
+        // Crear nueva asignatura
+        const createdAsignatura = await AsignaturasService.createAsignatura(asignaturaData);
+        
+        // Guardar ID de la asignatura creada para usarlo en la pestaña de RAA
+        if (createdAsignatura.id) {
+          localStorage.setItem('current_asignatura_id', createdAsignatura.id.toString());
+        }
+        
+        NotificationService.success(
+          'Asignatura creada',
+          'La asignatura se ha creado exitosamente'
+        );
+        
+        // Limpiar formulario
+        setFormData({
+          codigo: "",
+          nombre: "",
+          descripcion: "",
+          unidadCurricular: "",
+          tipoAsignatura: "",
+          pensum: "",
+          creditos: "",
+          nivelReferencial: "",
+        });
       }
-      
-      NotificationService.success(
-        'Asignatura creada',
-        'La asignatura se ha creado exitosamente'
-      );
-      
-      // Limpiar formulario
-      setFormData({
-        codigo: "",
-        nombre: "",
-        descripcion: "",
-        unidadCurricular: "",
-        tipoAsignatura: "",
-        pensum: "",
-        creditos: "",
-        nivelReferencial: "",
-      });
     } catch (error) {
-      console.error('Error creando asignatura:', error);
+      console.error(`Error ${isEditMode ? 'actualizando' : 'creando'} asignatura:`, error);
       NotificationService.error(
-        'Error al crear asignatura',
+        `Error al ${isEditMode ? 'actualizar' : 'crear'} asignatura`,
         error instanceof Error ? error.message : 'Error desconocido'
       );
     } finally {
@@ -385,7 +458,7 @@ export default function AsignaturaForm() {
                     className="bg-[#22C55E] hover:bg-[#16A34A] text-white"
                     disabled={loading}
                   >
-                    {loading ? 'Guardando...' : 'Guardar'}
+                    {loading ? 'Guardando...' : (isEditMode ? 'Actualizar' : 'Guardar')}
                   </Button>
                 </div>
               </form>

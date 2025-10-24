@@ -99,27 +99,7 @@ export default function MapeoRAAvsRA() {
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm, showDropdown]);
 
-  // Cargar RAs de la carrera al montar el componente
-  useEffect(() => {
-    loadRAs();
-  }, []);
-
-  const loadRAs = async () => {
-    try {
-      const rasData = await LearningOutcomesService.getLearningOutcomes();
-      setRaList(
-        rasData.map((ra: LearningOutcome) => ({
-          id: ra.id || 0,
-          codigo: ra.codigo,
-          descripcion: ra.descripcion,
-          tipo: ra.tipo
-        }))
-      );
-    } catch (error) {
-      console.error('Error cargando RAs:', error);
-      setRaList([]);
-    }
-  };
+  // Los RAs ahora se cargan junto con la matriz cuando se selecciona una asignatura
 
   // Cargar datos de la matriz cuando se selecciona una asignatura
   const handleAsignaturaSelect = async (asignatura: Asignatura) => {
@@ -131,22 +111,55 @@ export default function MapeoRAAvsRA() {
     
     setIsLoading(true);
     try {
-      // Cargar RAAs de la asignatura
-      const raasData = await RaaService.getRaas(asignatura.id);
+      // Obtener carreraId del usuario
+      let carreraId: number | null = null;
+      const rawUser = typeof window !== 'undefined' ? localStorage.getItem('auth_user') : null;
+      if (rawUser) {
+        const parsedUser = JSON.parse(rawUser);
+        carreraId = parsedUser?.carrera?.id ?? parsedUser?.carreraId ?? null;
+      }
+      
+      if (!carreraId) {
+        throw new Error('No se encontró el ID de carrera del usuario');
+      }
+
+      // Cargar matriz completa usando el nuevo endpoint
+      const matrixData = await MappingsService.getRaaRaMatrix(asignatura.id, carreraId);
+      
+      // Procesar RAAs
       setRaaList(
-        raasData.map((raa: Raa) => ({
-          id: raa.id || 0,
-          codigo: raa.codigo,
-          tipo: raa.tipo,
-          descripcion: raa.descripcion
+        (matrixData.raas || []).map((raa: any) => ({
+          id: raa.id,
+          codigo: raa.code || raa.codigo,
+          tipo: raa.type || raa.tipo,
+          descripcion: raa.description || raa.descripcion
         }))
       );
 
-      // Cargar mappings existentes
-      await loadMappings();
+      // Procesar RAs
+      setRaList(
+        (matrixData.ras || []).map((ra: any) => ({
+          id: ra.id,
+          codigo: ra.code || ra.codigo,
+          descripcion: ra.description || ra.descripcion,
+          tipo: ra.type || ra.tipo
+        }))
+      );
+
+      // Procesar mappings
+      setMappings(
+        (matrixData.mappings || [])
+          .filter((m: any) => m.hasMapping || m.hasMaping)
+          .map((m: any) => ({
+            raaId: m.raaId,
+            raId: m.raId,
+            nivelAporte: m.contributionLevel || m.nivelAporte
+          }))
+      );
     } catch (error) {
       console.error('Error cargando datos de la matriz:', error);
       setRaaList([]);
+      setRaList([]);
       setMappings([]);
     } finally {
       setIsLoading(false);
@@ -162,6 +175,8 @@ export default function MapeoRAAvsRA() {
 
   const loadMappings = async () => {
     try {
+      if (!selectedAsignatura?.id) return;
+
       // Obtener carreraId del usuario
       let carreraId: number | null = null;
       const rawUser = typeof window !== 'undefined' ? localStorage.getItem('auth_user') : null;
@@ -172,19 +187,26 @@ export default function MapeoRAAvsRA() {
       
       if (!carreraId) return;
 
-      const filter = nivelAporteFilter && nivelAporteFilter !== "todos" 
-        ? (nivelAporteFilter as 'Alto' | 'Medio' | 'Bajo')
-        : undefined;
+      // Recargar matriz completa
+      const matrixData = await MappingsService.getRaaRaMatrix(selectedAsignatura.id, carreraId);
       
-      const mappingsData = await MappingsService.getRaaRaMappings(carreraId, filter);
-      
-      setMappings(
-        mappingsData.map((m: any) => ({
+      // Procesar mappings y aplicar filtro de nivel de aporte si existe
+      let mappingsProcessed = (matrixData.mappings || [])
+        .filter((m: any) => m.hasMapping || m.hasMaping)
+        .map((m: any) => ({
           raaId: m.raaId,
-          raId: m.resultadoAprendizajeId || m.raId,
-          nivelAporte: m.nivelAporte
-        }))
-      );
+          raId: m.raId,
+          nivelAporte: m.contributionLevel || m.nivelAporte
+        }));
+
+      // Aplicar filtro de nivel de aporte si está seleccionado
+      if (nivelAporteFilter && nivelAporteFilter !== "todos") {
+        mappingsProcessed = mappingsProcessed.filter(
+          (m: any) => m.nivelAporte === nivelAporteFilter
+        );
+      }
+
+      setMappings(mappingsProcessed);
     } catch (error) {
       console.error('Error cargando mappings RAA-RA:', error);
       setMappings([]);

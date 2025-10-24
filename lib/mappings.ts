@@ -254,6 +254,27 @@ export class MappingsService {
   // ==================== RAA-RA Mappings ====================
 
   /**
+   * Obtener matriz RAA-RA por asignaturaId y carreraId
+   */
+  static async getRaaRaMatrix(asignaturaId: number, carreraId: number) {
+    try {
+      const response = await AuthService.authenticatedFetch(`/api/mappings/raa-ra/matrix/${asignaturaId}/${carreraId}`, {
+        method: 'GET',
+      });
+
+      if (!response.ok) {
+        console.error(`Error obteniendo matriz RAA-RA: ${response.status} ${response.statusText}`);
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error obteniendo matriz RAA-RA:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Obtener mappings RAA-RA filtrados por carreraId y opcionalmente por nivel de aporte
    */
   static async getRaaRaMappings(carreraId?: number, nivelAporte?: 'Alto' | 'Medio' | 'Bajo'): Promise<any[]> {

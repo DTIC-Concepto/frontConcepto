@@ -106,6 +106,50 @@ export class AsignaturasService {
   }
 
   /**
+   * Actualiza una asignatura existente
+   * Puede ser ejecutado por usuarios con rol COORDINADOR o PROFESOR
+   */
+  static async updateAsignatura(id: number, asignatura: CreateAsignaturaRequest): Promise<Asignatura> {
+    try {
+      // El backend PATCH no acepta carreraIds ni estadoActivo
+      // Solo enviar los campos que el backend espera
+      const updatePayload = {
+        codigo: asignatura.codigo,
+        nombre: asignatura.nombre,
+        creditos: asignatura.creditos,
+        descripcion: asignatura.descripcion,
+        tipoAsignatura: asignatura.tipoAsignatura,
+        unidadCurricular: asignatura.unidadCurricular,
+        pensum: asignatura.pensum,
+        nivelReferencial: asignatura.nivelReferencial,
+      };
+
+      console.log('updateAsignatura - ID:', id);
+      console.log('updateAsignatura - Payload (sin carreraIds ni estadoActivo):', JSON.stringify(updatePayload, null, 2));
+
+      const response = await AuthService.authenticatedFetch(`/api/asignaturas/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updatePayload),
+      });
+
+      console.log('updateAsignatura - Response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+        console.error('updateAsignatura - Error data:', errorData);
+        throw new Error(errorData.error || `Error ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('updateAsignatura - Success:', result);
+      return result;
+    } catch (error) {
+      console.error('Error actualizando asignatura:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Valida los datos de la asignatura antes de enviar
    */
   static validateAsignatura(asignatura: Partial<CreateAsignaturaRequest>): string[] {
