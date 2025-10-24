@@ -4,10 +4,10 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://backprueba-p
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { asignaturaId: string; carreraId: string } }
+  { params }: { params: Promise<{ asignaturaId: string; carreraId: string }> }
 ) {
   try {
-    const { asignaturaId, carreraId } = params;
+    const { asignaturaId, carreraId } = await params;
     const token = request.headers.get('Authorization')?.replace('Bearer ', '');
 
     console.log('=== GET /api/mappings/raa-ra/matrix ===');
