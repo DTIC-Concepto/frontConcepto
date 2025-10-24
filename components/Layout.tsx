@@ -25,6 +25,8 @@ import {
   ChevronDown,
   Table2,
   LayoutGrid,
+  BarChart3,
+  Scale,
 } from "lucide-react";
 
 interface LayoutProps {
@@ -159,100 +161,247 @@ export default function Layout({ children }: LayoutProps) {
       <div className="flex flex-1">
         {/* Sidebar */}
         <aside className="hidden md:flex w-56 lg:w-64 border-r border-[#DEE1E6] bg-white flex-col">
-          <nav className="p-2 space-y-1">
-            {userRole === 'COORDINADOR' || userRole === 'CEI' ? (
-              // Sidebar específico para roles académicos (COORDINADOR y CEI)
-              <>
-                <Link
-                  href="/dashboard"
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                    pathname === "/dashboard" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
-                  )}
-                >
-                  <Home className="w-5 h-5" />
-                  <span>Inicio</span>
-                </Link>
-
-                <Link
-                  href="/objetivos-carrera"
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors mt-1",
-                    pathname === "/objetivos-carrera" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
-                  )}
-                >
-                  <Layers className="w-5 h-5" />
-                  <span>Objetivos de Carrera</span>
-                </Link>
-
-                <Link
-                  href="/resultados-aprendizaje"
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors mt-1",
-                    pathname === "/resultados-aprendizaje" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
-                  )}
-                >
-                  <BookOpen className="w-5 h-5" />
-                  <span>R. de Aprendizaje</span>
-                </Link>
-
-                <Link
-                  href="/criterios-eur-ace"
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors mt-1",
-                    pathname === "/criterios-eur-ace" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
-                  )}
-                >
-                  <FileText className="w-5 h-5" />
-                  <span>Criterios EUR-ACE</span>
-                </Link>
-
-                <div className="mt-1">
-                  <button
-                    onClick={() => setEditorOpen(!editorOpen)}
-                    className="flex items-center justify-between w-full px-3 py-2 rounded-md text-sm font-medium text-[#565D6D] hover:bg-gray-50 transition-colors"
+          {userRole === 'COORDINADOR' || userRole === 'PROFESOR' ? (
+            // Nuevo sidebar con secciones para COORDINADOR y PROFESOR
+            <nav className="flex-1 overflow-y-auto p-4">
+              {/* CARRERA Section */}
+              <div className="mb-6">
+                <h3 className="text-xs font-bold text-[#565D6D] uppercase tracking-wide mb-3 px-3">
+                  CARRERA
+                </h3>
+                <div className="space-y-1">
+                  <Link
+                    href="/objetivos-carrera"
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                      pathname === "/objetivos-carrera"
+                        ? "bg-[#F3F4F6] text-[#1E2128] font-medium"
+                        : "text-[#565D6D] hover:bg-[#F3F4F6]"
+                    )}
                   >
-                    <div className="flex items-center gap-3">
-                      <Settings className="w-5 h-5" />
-                      <span>Editor Mapeos</span>
-                    </div>
-                    <ChevronDown className={cn("w-4 h-4 transition-transform", editorOpen && "rotate-180")} />
-                  </button>
-                  
-                  {editorOpen && (
-                    <div className="ml-8 mt-1 space-y-1">
-                      <Link
-                        href="/mapeos/ra-vs-opp"
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-[#565D6D] hover:bg-gray-50 rounded-md"
-                      >
-                        <Table2 className="w-3 h-3" />
-                        <span>RA vs OPP</span>
-                      </Link>
-                      <Link
-                        href="/mapeos/ra-vs-eurace"
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-[#565D6D] hover:bg-gray-50 rounded-md"
-                      >
-                        <LayoutGrid className="w-3 h-3" />
-                        <span>RA vs EUR-ACE</span>
-                      </Link>
-                    </div>
-                  )}
+                    <GraduationCap className="w-5 h-5 flex-shrink-0" />
+                    <span className="truncate">Objetivos de carrera (OP)</span>
+                  </Link>
+                  <Link
+                    href="/resultados-aprendizaje"
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                      pathname === "/resultados-aprendizaje"
+                        ? "bg-[#F3F4F6] text-[#1E2128] font-medium"
+                        : "text-[#565D6D] hover:bg-[#F3F4F6]"
+                    )}
+                  >
+                    <BookOpen className="w-5 h-5 flex-shrink-0" />
+                    <span className="truncate">Resultados de aprendizaje (RA)</span>
+                  </Link>
+                  <Link
+                    href="/asignaturas"
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                      pathname.startsWith("/asignaturas")
+                        ? "bg-[#F3F4F6] text-[#1E2128] font-medium"
+                        : "text-[#565D6D] hover:bg-[#F3F4F6]"
+                    )}
+                  >
+                    <LayoutGrid className="w-5 h-5 flex-shrink-0" />
+                    <span className="truncate">Asignaturas</span>
+                  </Link>
                 </div>
+              </div>
 
-                <Link
-                  href="/perfil"
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors mt-1",
-                    pathname === "/perfil" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
-                  )}
+              {/* ACREDITACIÓN Section */}
+              <div className="mb-6">
+                <h3 className="text-xs font-bold text-[#565D6D] uppercase tracking-wide mb-3 px-3">
+                  ACREDITACIÓN
+                </h3>
+                <div className="space-y-1">
+                  <Link
+                    href="/criterios-eur-ace"
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                      pathname === "/criterios-eur-ace"
+                        ? "bg-[#F3F4F6] text-[#1E2128] font-medium"
+                        : "text-[#565D6D] hover:bg-[#F3F4F6]"
+                    )}
+                  >
+                    <Scale className="w-5 h-5 flex-shrink-0" />
+                    <span className="truncate">Criterios EUR-ACE (CE)</span>
+                  </Link>
+                </div>
+              </div>
+
+              {/* MATRICES Section */}
+              <div className="mb-6">
+                <h3 className="text-xs font-bold text-[#565D6D] uppercase tracking-wide mb-3 px-3">
+                  MATRICES
+                </h3>
+                <div className="space-y-1">
+                  <Link
+                    href="/mapeos/ra-vs-opp"
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                      pathname === "/mapeos/ra-vs-opp"
+                        ? "bg-[#F3F4F6] text-[#1E2128] font-medium"
+                        : "text-[#565D6D] hover:bg-[#F3F4F6]"
+                    )}
+                  >
+                    <FileText className="w-5 h-5 flex-shrink-0" />
+                    <span className="truncate">OP vs RA</span>
+                  </Link>
+                  <Link
+                    href="/mapeos/ra-vs-eurace"
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                      pathname === "/mapeos/ra-vs-eurace"
+                        ? "bg-[#F3F4F6] text-[#1E2128] font-medium"
+                        : "text-[#565D6D] hover:bg-[#F3F4F6]"
+                    )}
+                  >
+                    <FileText className="w-5 h-5 flex-shrink-0" />
+                    <span className="truncate">CE vs RA</span>
+                  </Link>
+                  <Link
+                    href="/mapeos/raa-vs-ra"
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                      pathname === "/mapeos/raa-vs-ra"
+                        ? "bg-[#F3F4F6] text-[#1E2128] font-medium"
+                        : "text-[#565D6D] hover:bg-[#F3F4F6]"
+                    )}
+                  >
+                    <FileText className="w-5 h-5 flex-shrink-0" />
+                    <span className="truncate">RAA vs RA</span>
+                  </Link>
+                </div>
+              </div>
+
+              {/* REPORTES Section */}
+              <div className="mb-6">
+                <h3 className="text-xs font-bold text-[#565D6D] uppercase tracking-wide mb-3 px-3">
+                  REPORTES
+                </h3>
+                <div className="space-y-1">
+                  <Link
+                    href="/construccion"
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                      pathname === "/construccion"
+                        ? "bg-[#F3F4F6] text-[#1E2128] font-medium"
+                        : "text-[#565D6D] hover:bg-[#F3F4F6]"
+                    )}
+                  >
+                    <BarChart3 className="w-5 h-5 flex-shrink-0" />
+                    <span className="truncate">Asignaturas vs CE</span>
+                  </Link>
+                  <Link
+                    href="/construccion"
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                      pathname === "/construccion"
+                        ? "bg-[#F3F4F6] text-[#1E2128] font-medium"
+                        : "text-[#565D6D] hover:bg-[#F3F4F6]"
+                    )}
+                  >
+                    <BarChart3 className="w-5 h-5 flex-shrink-0" />
+                    <span className="truncate">OP vs RA vs Asignatura</span>
+                  </Link>
+                </div>
+              </div>
+            </nav>
+          ) : userRole === 'CEI' ? (
+            // Sidebar para CEI
+            <nav className="p-2 space-y-1">
+              <Link
+                href="/dashboard"
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                  pathname === "/dashboard" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
+                )}
+              >
+                <Home className="w-5 h-5" />
+                <span>Inicio</span>
+              </Link>
+
+              <Link
+                href="/objetivos-carrera"
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors mt-1",
+                  pathname === "/objetivos-carrera" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
+                )}
+              >
+                <Layers className="w-5 h-5" />
+                <span>Objetivos de Carrera</span>
+              </Link>
+
+              <Link
+                href="/resultados-aprendizaje"
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors mt-1",
+                  pathname === "/resultados-aprendizaje" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
+                )}
+              >
+                <BookOpen className="w-5 h-5" />
+                <span>R. de Aprendizaje</span>
+              </Link>
+
+              <Link
+                href="/criterios-eur-ace"
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors mt-1",
+                  pathname === "/criterios-eur-ace" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
+                )}
+              >
+                <FileText className="w-5 h-5" />
+                <span>Criterios EUR-ACE</span>
+              </Link>
+
+              <div className="mt-1">
+                <button
+                  onClick={() => setEditorOpen(!editorOpen)}
+                  className="flex items-center justify-between w-full px-3 py-2 rounded-md text-sm font-medium text-[#565D6D] hover:bg-gray-50 transition-colors"
                 >
-                  <User className="w-5 h-5" />
-                  <span>Mi Perfil</span>
-                </Link>
-              </>
-            ) : (
-              // Sidebar original para Administrador (por defecto y cuando no es coordinador ni CEI)
-              adminMenuItems.map((item) => {
+                  <div className="flex items-center gap-3">
+                    <Settings className="w-5 h-5" />
+                    <span>Editor Mapeos</span>
+                  </div>
+                  <ChevronDown className={cn("w-4 h-4 transition-transform", editorOpen && "rotate-180")} />
+                </button>
+                
+                {editorOpen && (
+                  <div className="ml-8 mt-1 space-y-1">
+                    <Link
+                      href="/mapeos/ra-vs-opp"
+                      className="flex items-center gap-2 px-3 py-2 text-sm text-[#565D6D] hover:bg-gray-50 rounded-md"
+                    >
+                      <Table2 className="w-3 h-3" />
+                      <span>RA vs OPP</span>
+                    </Link>
+                    <Link
+                      href="/mapeos/ra-vs-eurace"
+                      className="flex items-center gap-2 px-3 py-2 text-sm text-[#565D6D] hover:bg-gray-50 rounded-md"
+                    >
+                      <LayoutGrid className="w-3 h-3" />
+                      <span>RA vs EUR-ACE</span>
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              <Link
+                href="/perfil"
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors mt-1",
+                  pathname === "/perfil" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
+                )}
+              >
+                <User className="w-5 h-5" />
+                <span>Mi Perfil</span>
+              </Link>
+            </nav>
+          ) : (
+            // Sidebar original para Administrador (por defecto)
+            <nav className="p-2 space-y-1">
+              {adminMenuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.path;
                 return (
@@ -270,9 +419,9 @@ export default function Layout({ children }: LayoutProps) {
                     <span>{item.label}</span>
                   </Link>
                 );
-              })
-            )}
-          </nav>
+              })}
+            </nav>
+          )}
         </aside>
 
         {/* Main Content */}

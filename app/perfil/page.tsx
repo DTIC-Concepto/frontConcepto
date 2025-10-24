@@ -18,6 +18,26 @@ export default function Perfil() {
   const [isLoading, setIsLoading] = useState(true);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
+  // Redirigir si es COORDINADOR o PROFESOR
+  useEffect(() => {
+    const checkAccess = async () => {
+      try {
+        const profile = await ProfileService.getUserProfile();
+        if (profile.rol === 'COORDINADOR' || profile.rol === 'PROFESOR') {
+          NotificationService.error(
+            "Acceso Denegado",
+            "Esta sección no está disponible para tu rol."
+          );
+          window.location.href = '/asignaturas';
+          return;
+        }
+      } catch (error) {
+        console.error('Error verificando acceso:', error);
+      }
+    };
+    checkAccess();
+  }, []);
+
   // Cargar datos del perfil al montar el componente
   useEffect(() => {
     loadProfileData();

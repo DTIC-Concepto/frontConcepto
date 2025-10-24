@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
-import CoordinadorRoute from "@/components/CoordinadorRoute";
+import CeiReadOnlyRoute from "@/components/CeiReadOnlyRoute";
 import { Plus, Search, Edit2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Pagination from "@/components/Pagination";
+import { AuthService } from "@/lib/auth";
 
 interface Objetivo {
   id: string;
@@ -75,18 +76,33 @@ export default function Objetivos() {
     setCurrentPage(1);
   };
 
+  // Obtener rol del usuario para controlar permisos de creación
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [canCreate, setCanCreate] = useState(false);
+
+  // Inicializar datos del usuario solo en el cliente
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const role = AuthService.getUserRole();
+      setUserRole(role);
+      setCanCreate(role === 'COORDINADOR');
+    }
+  }, []);
+
   return (
-    <CoordinadorRoute>
+    <CeiReadOnlyRoute>
       <Layout>
         <div className="p-8">
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-4xl font-bold text-[#171A1F] font-['Open_Sans']">
               Gestión de Objetivos de Carrera (OPP)
             </h1>
-            <Button className="bg-[#003366] hover:bg-[#002244] text-white gap-2">
-              <Plus className="w-4 h-4" />
-              Nuevo OPP
-            </Button>
+            {canCreate && (
+              <Button className="bg-[#003366] hover:bg-[#002244] text-white gap-2">
+                <Plus className="w-4 h-4" />
+                Nuevo OPP
+              </Button>
+            )}
           </div>
 
         <div className="bg-white border border-[#DEE1E6] rounded-md p-4 mb-6">
@@ -130,22 +146,24 @@ export default function Objetivos() {
                       <span className="text-sm text-[#565D6D]">{objetivo.descripcion}</span>
                     </td>
                     <td className="px-6 py-8">
-                      <div className="flex items-center justify-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-9 w-9 text-[#003366] hover:bg-gray-100"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-9 w-9 text-[#DC3848] hover:bg-gray-100"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                      {canCreate && (
+                        <div className="flex items-center justify-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 text-[#003366] hover:bg-gray-100"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 text-[#DC3848] hover:bg-gray-100"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -162,6 +180,6 @@ export default function Objetivos() {
         />
       </div>
     </Layout>
-    </CoordinadorRoute>
+    </CeiReadOnlyRoute>
   );
 }

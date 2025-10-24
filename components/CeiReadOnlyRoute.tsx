@@ -5,11 +5,15 @@ import { useRouter } from 'next/navigation';
 import { useUser } from '@/contexts/UserContext';
 import NotificationService from '@/lib/notifications';
 
-interface AcademicRouteProps {
+interface CeiReadOnlyRouteProps {
   children: React.ReactNode;
 }
 
-export default function AcademicRoute({ children }: AcademicRouteProps) {
+/**
+ * Componente que permite acceso de solo lectura a COORDINADOR y CEI
+ * Utilizado para páginas donde CEI puede VER pero no CREAR/EDITAR
+ */
+export default function CeiReadOnlyRoute({ children }: CeiReadOnlyRouteProps) {
   const { user, isAuthenticated } = useUser();
   const router = useRouter();
 
@@ -20,11 +24,8 @@ export default function AcademicRoute({ children }: AcademicRouteProps) {
       return;
     }
 
-    // Roles permitidos para acceder a las rutas académicas
-    const allowedRoles = ['COORDINADOR', 'CEI', 'PROFESOR'];
-    
-    // Si está autenticado pero no tiene un rol permitido, mostrar error y redirigir
-    if (user && !allowedRoles.includes(user.role)) {
+    // Si está autenticado pero no es COORDINADOR ni CEI, mostrar error y redirigir
+    if (user && user.role !== 'COORDINADOR' && user.role !== 'CEI') {
       NotificationService.error(
         "Acceso Denegado",
         "No tienes permisos para acceder a esta sección."
@@ -34,11 +35,8 @@ export default function AcademicRoute({ children }: AcademicRouteProps) {
     }
   }, [user, isAuthenticated, router]);
 
-  // Roles permitidos
-  const allowedRoles = ['COORDINADOR', 'CEI', 'PROFESOR'];
-  
-  // Solo renderizar el contenido si el usuario tiene un rol permitido
-  if (!isAuthenticated || !user || !allowedRoles.includes(user.role)) {
+  // Solo renderizar el contenido si el usuario es COORDINADOR o CEI
+  if (!isAuthenticated || !user || (user.role !== 'COORDINADOR' && user.role !== 'CEI')) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-4">
