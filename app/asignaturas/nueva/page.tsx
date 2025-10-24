@@ -24,6 +24,7 @@ export default function AsignaturaForm() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingAsignaturaId, setEditingAsignaturaId] = useState<number | null>(null);
   const [savedCarreraIds, setSavedCarreraIds] = useState<number[]>([]);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [formData, setFormData] = useState({
     codigo: "",
     nombre: "",
@@ -36,6 +37,11 @@ export default function AsignaturaForm() {
   });
   const [loading, setLoading] = useState(false);
 
+  // Debug: Monitorear cambios en nivelReferencial
+  useEffect(() => {
+    console.log('FormData actualizado, nivelReferencial:', formData.nivelReferencial);
+  }, [formData.nivelReferencial]);
+
   // Cargar datos si estamos en modo edición
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -46,6 +52,12 @@ export default function AsignaturaForm() {
           console.log('Cargando asignatura para edición:', asignatura);
           setIsEditMode(true);
           setEditingAsignaturaId(asignatura.id);
+          
+          // Guardar el ID de la asignatura en localStorage para que las pestañas lo puedan usar
+          if (asignatura.id) {
+            localStorage.setItem('current_asignatura_id', asignatura.id.toString());
+            console.log('✅ current_asignatura_id guardado:', asignatura.id);
+          }
           
           // Guardar los carreraIds originales
           if (asignatura.carreraIds && Array.isArray(asignatura.carreraIds)) {
@@ -62,7 +74,7 @@ export default function AsignaturaForm() {
             }
           }
           
-          setFormData({
+          const formDataToSet = {
             codigo: asignatura.codigo || "",
             nombre: asignatura.nombre || "",
             descripcion: asignatura.descripcion || "",
@@ -71,12 +83,21 @@ export default function AsignaturaForm() {
             pensum: asignatura.pensum?.toString() || "",
             creditos: asignatura.creditos?.toString() || "",
             nivelReferencial: asignatura.nivelReferencial?.toString() || "",
-          });
+          };
+          
+          console.log('FormData a cargar:', formDataToSet);
+          console.log('nivelReferencial original:', asignatura.nivelReferencial);
+          console.log('nivelReferencial convertido:', formDataToSet.nivelReferencial);
+          
+          setFormData(formDataToSet);
+          setIsDataLoaded(true);
           // Limpiar localStorage después de cargar
           localStorage.removeItem('edit_asignatura');
         } catch (error) {
           console.error('Error cargando datos de edición:', error);
         }
+      } else {
+        setIsDataLoaded(true);
       }
     }
   }, []);
@@ -287,6 +308,7 @@ export default function AsignaturaForm() {
                       Unidad de integración curricular*
                     </Label>
                     <Select
+                      key={`unidad-${formData.unidadCurricular}-${isDataLoaded}`}
                       value={formData.unidadCurricular}
                       onValueChange={(value) =>
                         setFormData({ ...formData, unidadCurricular: value })
@@ -317,6 +339,7 @@ export default function AsignaturaForm() {
                       Tipo de asignatura*
                     </Label>
                     <Select
+                      key={`tipo-${formData.tipoAsignatura}-${isDataLoaded}`}
                       value={formData.tipoAsignatura}
                       onValueChange={(value) =>
                         setFormData({ ...formData, tipoAsignatura: value })
@@ -343,6 +366,7 @@ export default function AsignaturaForm() {
                       Pensum*
                     </Label>
                     <Select
+                      key={`pensum-${formData.pensum}-${isDataLoaded}`}
                       value={formData.pensum}
                       onValueChange={(value) =>
                         setFormData({ ...formData, pensum: value })
@@ -397,6 +421,7 @@ export default function AsignaturaForm() {
                       Nivel Referencial*
                     </Label>
                     <Select
+                      key={`nivel-${formData.nivelReferencial}-${isDataLoaded}`}
                       value={formData.nivelReferencial}
                       onValueChange={(value) =>
                         setFormData({ ...formData, nivelReferencial: value })

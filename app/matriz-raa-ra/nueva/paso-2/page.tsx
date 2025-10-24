@@ -7,10 +7,18 @@ import AcademicRoute from "@/components/AcademicRoute";
 import { Steps } from "@/components/StepIndicator";
 import { Button } from "@/components/ui/button";
 import { Search, ChevronLeft, ChevronRight, ChevronDown, Loader2 } from "lucide-react";
-import { LearningOutcomesService, type LearningOutcome } from "@/lib/learning-outcomes";
+import { type LearningOutcome } from "@/lib/learning-outcomes";
+import { MappingsService } from "@/lib/mappings";
 import NotificationService from "@/lib/notifications";
 
 const ITEMS_PER_PAGE = 5;
+
+interface SelectedRaa {
+  id: number;
+  codigo: string;
+  descripcion: string;
+  tipo: string;
+}
 
 export default function RaSelection() {
   const router = useRouter();
@@ -20,12 +28,62 @@ export default function RaSelection() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [tipoFilter, setTipoFilter] = useState<string>("");
+  const [raaId, setRaaId] = useState<number | null>(null);
+  const [carreraId, setCarreraId] = useState<number | null>(null);
 
   useEffect(() => {
     const loadRas = async () => {
       try {
         setLoading(true);
-        const data = await LearningOutcomesService.getLearningOutcomes();
+
+        // Obtener RAA seleccionado del paso 1
+        const raaData = typeof window !== 'undefined' 
+          ? localStorage.getItem('selectedRaa') 
+          : null;
+        
+        if (!raaData) {
+          NotificationService.error('Error', 'No se encontró el RAA seleccionado. Por favor, inicie el proceso nuevamente.');
+          router.push('/matriz-raa-ra/nueva');
+          return;
+        }
+
+        const selectedRaa: SelectedRaa = JSON.parse(raaData);
+        setRaaId(selectedRaa.id);
+
+        // Obtener carreraId del usuario
+        const authUser = typeof window !== 'undefined'
+          ? localStorage.getItem('auth_user')
+          : null;
+        
+        if (!authUser) {
+          NotificationService.error('Error', 'No se encontró información del usuario.');
+          router.push('/matriz-raa-ra/nueva');
+          return;
+        }
+
+        const userData = JSON.parse(authUser);
+        // Intentar obtener carreraId de diferentes fuentes
+        const userCarreraId = userData.carreraIds?.[0] ?? userData.carrera?.id ?? userData.carreraId ?? null;
+        
+        console.log('User data en paso 2:', userData);
+        console.log('Carrera ID obtenido:', userCarreraId);
+        
+        if (!userCarreraId) {
+          NotificationService.error('Error', 'No se encontró la carrera del usuario.');
+          console.error('No se pudo obtener carreraId. userData completo:', userData);
+          router.push('/matriz-raa-ra/nueva');
+          return;
+        }
+
+        setCarreraId(userCarreraId);
+
+        // Cargar RAs disponibles para este RAA usando el nuevo endpoint
+        const data = await MappingsService.getAvailableRasForRaa(
+          selectedRaa.id,
+          userCarreraId,
+          tipoFilter && tipoFilter !== '' ? tipoFilter as 'GENERAL' | 'ESPECIFICO' : undefined
+        );
+        
         setRaList(data);
       } catch (error) {
         console.error("Error cargando RAs:", error);
@@ -35,22 +93,18 @@ export default function RaSelection() {
       }
     };
     loadRas();
-  }, []);
+  }, [router, tipoFilter]);
 
   const filteredRas = useMemo(() => {
-    let filtered = raList;
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (ra) =>
-          ra.codigo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          ra.descripcion.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-    if (tipoFilter && tipoFilter !== "todos") {
-      filtered = filtered.filter((ra) => ra.tipo === tipoFilter);
-    }
-    return filtered;
-  }, [searchQuery, raList, tipoFilter]);
+    // Solo filtrar por búsqueda, el tipo ya viene filtrado desde el backend
+    if (!searchQuery) return raList;
+    
+    return raList.filter(
+      (ra) =>
+        ra.codigo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ra.descripcion.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [searchQuery, raList]);
 
   const totalPages = Math.ceil(filteredRas.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;

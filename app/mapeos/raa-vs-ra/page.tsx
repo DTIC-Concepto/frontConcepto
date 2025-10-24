@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import AcademicRoute from "@/components/AcademicRoute";
-import { Plus, Info, Search } from "lucide-react";
+import { Plus, Info, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -18,6 +18,8 @@ import { RaaService, type Raa } from "@/lib/raa";
 import { LearningOutcomesService, type LearningOutcome } from "@/lib/learning-outcomes";
 import { MappingsService } from "@/lib/mappings";
 import { AsignaturasService, type Asignatura } from "@/lib/asignaturas";
+import { EditRaaRaMappingModal } from "@/components/EditRaaRaMappingModal";
+import NotificationService from "@/lib/notifications";
 
 // Interfaces para los datos dinámicos
 interface MatrixRAA {
@@ -35,9 +37,11 @@ interface MatrixRA {
 }
 
 interface RaaRaMapping {
+  mappingId?: number;
   raaId: number;
   raId: number;
   nivelAporte?: 'Alto' | 'Medio' | 'Bajo';
+  justificacion?: string;
 }
 
 export default function MapeoRAAvsRA() {
@@ -56,6 +60,10 @@ export default function MapeoRAAvsRA() {
   const [raList, setRaList] = useState<MatrixRA[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedAsignatura, setSelectedAsignatura] = useState<Asignatura | null>(null);
+
+  // Estados para el modal de edición
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedMapping, setSelectedMapping] = useState<RaaRaMapping | null>(null);
 
   // Estados para el selector de asignatura
   const [asignaturas, setAsignaturas] = useState<Asignatura[]>([]);
@@ -126,22 +134,22 @@ export default function MapeoRAAvsRA() {
       // Cargar matriz completa usando el nuevo endpoint
       const matrixData = await MappingsService.getRaaRaMatrix(asignatura.id, carreraId);
       
-      // Procesar RAAs
+      // Procesar RAAs - Backend envía: code, description, tipo
       setRaaList(
         (matrixData.raas || []).map((raa: any) => ({
           id: raa.id,
           codigo: raa.code || raa.codigo,
-          tipo: raa.type || raa.tipo,
+          tipo: raa.tipo,
           descripcion: raa.description || raa.descripcion
         }))
       );
 
-      // Procesar RAs
+      // Procesar RAs - Backend envía: code, name (no description), type
       setRaList(
         (matrixData.ras || []).map((ra: any) => ({
           id: ra.id,
           codigo: ra.code || ra.codigo,
-          descripcion: ra.description || ra.descripcion,
+          descripcion: ra.name || ra.description || ra.descripcion,
           tipo: ra.type || ra.tipo
         }))
       );
@@ -151,9 +159,11 @@ export default function MapeoRAAvsRA() {
         (matrixData.mappings || [])
           .filter((m: any) => m.hasMapping || m.hasMaping)
           .map((m: any) => ({
+            mappingId: m.mappingId || m.id,
             raaId: m.raaId,
             raId: m.raId,
-            nivelAporte: m.contributionLevel || m.nivelAporte
+            nivelAporte: m.contributionLevel || m.nivelAporte,
+            justificacion: m.justification || m.justificacion || ''
           }))
       );
     } catch (error) {
@@ -194,9 +204,11 @@ export default function MapeoRAAvsRA() {
       let mappingsProcessed = (matrixData.mappings || [])
         .filter((m: any) => m.hasMapping || m.hasMaping)
         .map((m: any) => ({
+          mappingId: m.mappingId || m.id,
           raaId: m.raaId,
           raId: m.raId,
-          nivelAporte: m.contributionLevel || m.nivelAporte
+          nivelAporte: m.contributionLevel || m.nivelAporte,
+          justificacion: m.justification || m.justificacion || ''
         }));
 
       // Aplicar filtro de nivel de aporte si está seleccionado
@@ -248,6 +260,69 @@ export default function MapeoRAAvsRA() {
     return mapping?.nivelAporte || null;
   };
 
+  // Manejar clic en celda con relación
+  const handleCellClick = (raaId: number, raId: number) => {
+    const mapping = mappings.find(m => m.raaId === raaId && m.raId === raId);
+    if (mapping && mapping.mappingId) {
+      setSelectedMapping(mapping);
+      setIsEditModalOpen(true);
+    }
+  };
+
+  // Guardar cambios del modal
+  const handleSaveMapping = async (mappingId: number, data: { nivelAporte: string; justificacion: string }) => {
+    try {
+      const result = await MappingsService.updateRaaRaMapping(mappingId, data);
+      
+      if (result.success) {
+        NotificationService.success(
+          'Relación actualizada',
+          'Los cambios se han guardado correctamente'
+        );
+        // Recargar la matriz
+        await loadMappings();
+      } else {
+        NotificationService.error(
+          'Error',
+          result.error || 'No se pudo actualizar la relación'
+        );
+      }
+    } catch (error) {
+      console.error('Error guardando cambios:', error);
+      NotificationService.error(
+        'Error',
+        'Ocurrió un error al guardar los cambios'
+      );
+    }
+  };
+
+  // Eliminar relación
+  const handleDeleteMapping = async (mappingId: number) => {
+    try {
+      const result = await MappingsService.deleteRaaRaMapping(mappingId);
+      
+      if (result.success) {
+        NotificationService.success(
+          'Relación eliminada',
+          'La relación se ha eliminado correctamente'
+        );
+        // Recargar la matriz
+        await loadMappings();
+      } else {
+        NotificationService.error(
+          'Error',
+          result.error || 'No se pudo eliminar la relación'
+        );
+      }
+    } catch (error) {
+      console.error('Error eliminando relación:', error);
+      NotificationService.error(
+        'Error',
+        'Ocurrió un error al eliminar la relación'
+      );
+    }
+  };
+
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setIsDragging(true);
@@ -284,6 +359,8 @@ export default function MapeoRAAvsRA() {
     }
     // Guardar asignaturaId en localStorage para el wizard
     localStorage.setItem('current_asignatura_id', selectedAsignatura.id.toString());
+    // Marcar que el wizard viene del sidebar
+    localStorage.setItem('wizard_origin', 'sidebar');
     router.push('/matriz-raa-ra/nueva');
   };
 
@@ -327,8 +404,23 @@ export default function MapeoRAAvsRA() {
                       }
                     }}
                     placeholder="Buscar asignatura..."
-                    className="w-full px-4 py-2 pr-10 border border-[#DEE1E6] rounded-md focus:outline-none focus:ring-2 focus:ring-[#003366] text-sm"
+                    className="w-full px-4 py-2 pr-20 border border-[#DEE1E6] rounded-md focus:outline-none focus:ring-2 focus:ring-[#003366] text-sm"
                   />
+                  {selectedAsignatura && (
+                    <button
+                      onClick={() => {
+                        setSelectedAsignatura(null);
+                        setSearchTerm('');
+                        setRaaList([]);
+                        setRaList([]);
+                        setMappings([]);
+                      }}
+                      className="absolute right-10 top-1/2 -translate-y-1/2 text-[#565D6D] hover:text-[#171A1F] transition-colors"
+                      title="Limpiar selección"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                   <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#565D6D] pointer-events-none" />
                 </div>
                 
@@ -468,7 +560,7 @@ export default function MapeoRAAvsRA() {
                           key={`cell-${raa.id}-${ra.id}`}
                           className={`absolute rounded border border-gray-200 flex items-center justify-center transition-colors ${
                             hasMapping 
-                              ? getCellColor()
+                              ? `${getCellColor()} cursor-pointer hover:opacity-90`
                               : 'bg-white'
                           }`}
                           style={{
@@ -476,6 +568,12 @@ export default function MapeoRAAvsRA() {
                             top: rowIndex * CELL_HEIGHT,
                             width: CELL_WIDTH - 2,
                             height: CELL_HEIGHT - 2
+                          }}
+                          onClick={(e) => {
+                            if (hasMapping) {
+                              e.stopPropagation();
+                              handleCellClick(raa.id, ra.id);
+                            }
                           }}
                         >
                           {hasMapping && (
@@ -585,6 +683,24 @@ export default function MapeoRAAvsRA() {
             </div>
           )}
         </div>
+
+        {/* Modal de edición */}
+        {selectedMapping && (
+          <EditRaaRaMappingModal
+            isOpen={isEditModalOpen}
+            onClose={() => {
+              setIsEditModalOpen(false);
+              setSelectedMapping(null);
+            }}
+            mappingId={selectedMapping.mappingId!}
+            raaText={raaList.find(r => r.id === selectedMapping.raaId)?.descripcion || ''}
+            raText={raList.find(r => r.id === selectedMapping.raId)?.descripcion || ''}
+            nivelAporte={selectedMapping.nivelAporte || 'Medio'}
+            justificacion={selectedMapping.justificacion || ''}
+            onSave={handleSaveMapping}
+            onDelete={handleDeleteMapping}
+          />
+        )}
       </Layout>
     </AcademicRoute>
   );

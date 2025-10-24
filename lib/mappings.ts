@@ -302,6 +302,33 @@ export class MappingsService {
   }
 
   /**
+   * Obtener RAs disponibles para un RAA específico
+   */
+  static async getAvailableRasForRaa(raaId: number, carreraId: number, tipo?: 'GENERAL' | 'ESPECIFICO'): Promise<any[]> {
+    try {
+      const params = new URLSearchParams();
+      params.append('carreraId', carreraId.toString());
+      if (tipo) params.append('tipo', tipo);
+
+      const url = `/api/mappings/available-ras/raa/${raaId}?${params.toString()}`;
+      const response = await AuthService.authenticatedFetch(url, {
+        method: 'GET',
+      });
+
+      if (!response.ok) {
+        console.error(`Error obteniendo RAs disponibles: ${response.status} ${response.statusText}`);
+        return [];
+      }
+
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    } catch (error) {
+      console.error('Error obteniendo RAs disponibles para RAA:', error);
+      return [];
+    }
+  }
+
+  /**
    * Crear mapping RAA-RA (preparado para cuando se implemente el wizard)
    */
   static async createRaaRaMapping(mapping: {
@@ -337,6 +364,71 @@ export class MappingsService {
       return { success: true, data };
     } catch (error) {
       console.error('Error creando mapping RAA-RA:', error);
+      return { success: false, error: 'Error de conexión con el servidor' };
+    }
+  }
+
+  /**
+   * Actualizar mapping RAA-RA existente
+   */
+  static async updateRaaRaMapping(
+    id: number,
+    data: {
+      nivelAporte: string;
+      justificacion: string;
+    }
+  ): Promise<MappingOperationResult> {
+    try {
+      console.log('updateRaaRaMapping - ID:', id);
+      console.log('updateRaaRaMapping - Data:', JSON.stringify(data, null, 2));
+
+      const response = await AuthService.authenticatedFetch(`/api/mappings/raa-ra/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      console.log('updateRaaRaMapping - Response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+        console.error('updateRaaRaMapping - Error data:', errorData);
+        return { success: false, error: errorData.error || errorData.message || 'Error al actualizar mapping' };
+      }
+
+      const result = await response.json();
+      console.log('updateRaaRaMapping - Success:', result);
+      return { success: true, data: result };
+    } catch (error) {
+      console.error('Error actualizando mapping RAA-RA:', error);
+      return { success: false, error: 'Error de conexión con el servidor' };
+    }
+  }
+
+  /**
+   * Eliminar mapping RAA-RA
+   */
+  static async deleteRaaRaMapping(id: number): Promise<MappingOperationResult> {
+    try {
+      console.log('deleteRaaRaMapping - ID:', id);
+
+      const response = await AuthService.authenticatedFetch(`/api/mappings/raa-ra/${id}`, {
+        method: 'DELETE',
+      });
+
+      console.log('deleteRaaRaMapping - Response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+        console.error('deleteRaaRaMapping - Error data:', errorData);
+        return { success: false, error: errorData.error || errorData.message || 'Error al eliminar mapping' };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error eliminando mapping RAA-RA:', error);
       return { success: false, error: 'Error de conexión con el servidor' };
     }
   }

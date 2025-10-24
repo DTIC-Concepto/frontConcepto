@@ -18,6 +18,8 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { RaaService, type Raa } from "@/lib/raa";
 import { LearningOutcomesService, type LearningOutcome } from "@/lib/learning-outcomes";
 import { MappingsService } from "@/lib/mappings";
+import { EditRaaRaMappingModal } from "@/components/EditRaaRaMappingModal";
+import NotificationService from "@/lib/notifications";
 
 // Interfaces para los datos dinámicos
 interface MatrixRAA {
@@ -38,6 +40,8 @@ interface RaaRaMapping {
   raaId: number;
   raId: number;
   nivelAporte?: 'Alto' | 'Medio' | 'Bajo';
+  mappingId?: number;
+  justificacion?: string;
 }
 
 export default function MatrizRAAvsRA() {
@@ -57,22 +61,40 @@ export default function MatrizRAAvsRA() {
   const [isLoading, setIsLoading] = useState(true);
   const [asignaturaId, setAsignaturaId] = useState<number | null>(null);
 
+  // Estados para el modal de edición
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedMapping, setSelectedMapping] = useState<{
+    mappingId: number;
+    raaId: number;
+    raId: number;
+    nivelAporte: 'Alto' | 'Medio' | 'Bajo';
+    justificacion: string;
+  } | null>(null);
+
   // Cargar datos del backend
   useEffect(() => {
+    console.log('🔍 Matriz RAA vs RA - Iniciando carga de datos');
+    
     // Obtener asignaturaId del localStorage
     const idFromStorage = typeof window !== 'undefined' 
       ? localStorage.getItem('current_asignatura_id') 
       : null;
     
+    console.log('📌 AsignaturaId desde localStorage:', idFromStorage);
+    
     if (idFromStorage) {
-      setAsignaturaId(parseInt(idFromStorage));
-      loadMatrixData(parseInt(idFromStorage));
+      const parsedId = parseInt(idFromStorage);
+      console.log('✅ AsignaturaId válido:', parsedId);
+      setAsignaturaId(parsedId);
+      loadMatrixData(parsedId);
     } else {
+      console.warn('⚠️ No se encontró current_asignatura_id en localStorage');
       setIsLoading(false);
     }
     
     // Exponer función de recarga globalmente para que el wizard pueda llamarla
     (window as any).reloadRaaRaMatrix = () => {
+      console.log('♻️ Recargando matriz desde función global');
       if (idFromStorage) {
         loadMatrixData(parseInt(idFromStorage));
       }
@@ -86,92 +108,106 @@ export default function MatrizRAAvsRA() {
   // Recargar datos cuando cambia el filtro de nivel de aporte
   useEffect(() => {
     if (asignaturaId) {
-      loadMappings();
+      loadMatrixData(asignaturaId);
     }
   }, [nivelAporteFilter, asignaturaId]);
 
   const loadMatrixData = async (asigId: number) => {
     try {
+      console.log('🔄 loadMatrixData - Iniciando con asignaturaId:', asigId);
       setIsLoading(true);
       
       // Obtener carreraId del usuario logueado
       let carreraId: number | null = null;
       try {
         const rawUser = typeof window !== 'undefined' ? localStorage.getItem('auth_user') : null;
+        console.log('👤 Usuario raw desde localStorage:', rawUser ? 'Encontrado' : 'No encontrado');
+        
         if (rawUser) {
           const parsedUser = JSON.parse(rawUser);
-          carreraId = parsedUser?.carrera?.id ?? parsedUser?.carreraId ?? null;
+          console.log('👤 Usuario parseado:', parsedUser);
+          
+          // Intentar obtener de carreraIds array primero
+          carreraId = parsedUser?.carreraIds?.[0] ?? parsedUser?.carrera?.id ?? parsedUser?.carreraId ?? null;
+          console.log('🎓 CarreraId obtenido:', carreraId);
         }
-      } catch {}
+      } catch (error) {
+        console.error('❌ Error parseando usuario:', error);
+      }
       
       if (!carreraId) {
+        console.error('❌ No se encontró carreraId, abortando carga');
         throw new Error('No se encontró carreraId');
       }
 
-      // Cargar RAAs de la asignatura
-      const raasData = await RaaService.getRaas(asigId);
-      setRaaList(
-        raasData.map((raa: Raa) => ({
-          id: raa.id || 0,
-          codigo: raa.codigo,
-          tipo: raa.tipo,
-          descripcion: raa.descripcion
-        }))
-      );
+      console.log('📡 Llamando a MappingsService.getRaaRaMatrix con:', { asigId, carreraId });
+      
+      // Usar el nuevo endpoint de matriz que devuelve todo junto
+      const matrixData = await MappingsService.getRaaRaMatrix(asigId, carreraId);
+      
+      console.log('✅ Matrix data recibida:', matrixData);
+      console.log('📊 RAAs:', matrixData.raas?.length || 0);
+      console.log('📊 RAs:', matrixData.ras?.length || 0);
+      console.log('📊 Mappings:', matrixData.mappings?.length || 0);
+      
+      // Log de muestra de los datos
+      if (matrixData.raas?.length > 0) {
+        console.log('🔍 Primer RAA:', matrixData.raas[0]);
+      }
+      if (matrixData.ras?.length > 0) {
+        console.log('🔍 Primer RA:', matrixData.ras[0]);
+      }
 
-      // Cargar RAs de la carrera
-      const rasData = await LearningOutcomesService.getLearningOutcomes();
-      setRaList(
-        rasData.map((ra: LearningOutcome) => ({
-          id: ra.id || 0,
-          codigo: ra.codigo,
-          descripcion: ra.descripcion,
-          tipo: ra.tipo
-        }))
-      );
+      // Establecer RAAs - El backend envía: code, description, tipo
+      const mappedRaas = matrixData.raas.map((raa: any) => ({
+        id: raa.id || 0,
+        codigo: raa.code || raa.codigo || 'N/A',
+        tipo: raa.tipo || 'N/A',
+        descripcion: raa.description || raa.descripcion || 'Sin descripción'
+      }));
+      console.log('📝 RAAs mapeados:', mappedRaas);
+      setRaaList(mappedRaas);
 
-      // Cargar mappings existentes
-      await loadMappings(carreraId);
+      // Establecer RAs - El backend envía: code, name (no descripcion), type
+      const mappedRas = matrixData.ras.map((ra: any) => ({
+        id: ra.id || 0,
+        codigo: ra.code || ra.codigo || 'N/A',
+        descripcion: ra.name || ra.descripcion || 'Sin descripción',
+        tipo: (ra.type || ra.tipo || 'GENERAL') as 'GENERAL' | 'ESPECIFICO'
+      }));
+      console.log('📝 RAs mapeados:', mappedRas);
+      setRaList(mappedRas);
+
+      // Establecer mappings con el formato correcto incluyendo mappingId y justificacion
+      const allMappings = matrixData.mappings
+        .filter((m: any) => m.hasMapping)
+        .map((m: any) => ({
+          raaId: m.raaId,
+          raId: m.raId,
+          nivelAporte: m.nivelAporte,
+          mappingId: m.mappingId,
+          justificacion: m.justificacion
+        }));
+
+      // Aplicar filtro de nivel de aporte si está seleccionado
+      if (nivelAporteFilter && nivelAporteFilter !== "todos") {
+        const filtered = allMappings.filter((m: any) => m.nivelAporte === nivelAporteFilter);
+        console.log('🔍 Filtrado por nivel:', nivelAporteFilter, '- Resultados:', filtered.length);
+        setMappings(filtered);
+      } else {
+        console.log('📋 Sin filtro - Mostrando todos los mappings:', allMappings.length);
+        setMappings(allMappings);
+      }
+
+      console.log('✅ loadMatrixData completado exitosamente');
     } catch (error) {
-      console.error('Error cargando datos de la matriz:', error);
+      console.error('❌ Error cargando datos de la matriz:', error);
+      NotificationService.error('Error', 'No se pudo cargar la matriz. Por favor, intente nuevamente.');
       setRaaList([]);
       setRaList([]);
       setMappings([]);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const loadMappings = async (carreraId?: number) => {
-    try {
-      let carId = carreraId;
-      if (!carId) {
-        const rawUser = typeof window !== 'undefined' ? localStorage.getItem('auth_user') : null;
-        if (rawUser) {
-          const parsedUser = JSON.parse(rawUser);
-          carId = parsedUser?.carrera?.id ?? parsedUser?.carreraId ?? null;
-        }
-      }
-      
-      if (!carId) return;
-
-      const filter = nivelAporteFilter && nivelAporteFilter !== "todos" 
-        ? (nivelAporteFilter as 'Alto' | 'Medio' | 'Bajo')
-        : undefined;
-      
-      const mappingsData = await MappingsService.getRaaRaMappings(carId, filter);
-      
-      // Adaptar datos del backend al formato esperado
-      setMappings(
-        mappingsData.map((m: any) => ({
-          raaId: m.raaId,
-          raId: m.resultadoAprendizajeId || m.raId,  // Backend devuelve resultadoAprendizajeId
-          nivelAporte: m.nivelAporte
-        }))
-      );
-    } catch (error) {
-      console.error('Error cargando mappings RAA-RA:', error);
-      setMappings([]);
     }
   };
 
@@ -197,14 +233,58 @@ export default function MatrizRAAvsRA() {
     return mapping?.nivelAporte || null;
   };
 
-  // Función para manejar el clic en una celda (preparado para wizard)
+  // Función para manejar el clic en una celda
   const handleCellClick = (raaId: number, raId: number) => {
-    // Por ahora no hace nada, se activará cuando se implemente el wizard
-    if (hasRelationship(raaId, raId)) {
+    const mapping = mappings.find(m => m.raaId === raaId && m.raId === raId);
+    
+    if (!mapping || !mapping.mappingId) {
+      // Si no hay relación, abrir el wizard para crear una nueva
+      console.log('Cell clicked - No mapping, open wizard:', { raaId, raId });
+      // TODO: Implementar wizard cuando esté listo
       return;
     }
-    console.log('Cell clicked:', { raaId, raId });
-    // TODO: Abrir wizard cuando esté listo
+
+    // Si hay relación, abrir modal de edición
+    setSelectedMapping({
+      mappingId: mapping.mappingId,
+      raaId: mapping.raaId,
+      raId: mapping.raId,
+      nivelAporte: (mapping.nivelAporte || 'Medio') as 'Alto' | 'Medio' | 'Bajo',
+      justificacion: mapping.justificacion || ''
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveMapping = async (mappingId: number, data: { nivelAporte: string; justificacion: string }) => {
+    const result = await MappingsService.updateRaaRaMapping(mappingId, data);
+
+    if (result.success) {
+      NotificationService.success('Éxito', 'Relación actualizada correctamente');
+      setIsEditModalOpen(false);
+      setSelectedMapping(null);
+      // Recargar la matriz
+      if (asignaturaId) {
+        loadMatrixData(asignaturaId);
+      }
+    } else {
+      NotificationService.error('Error', result.error || 'Error al actualizar la relación');
+    }
+  };
+
+  const handleDeleteMapping = async (mappingId: number) => {
+    const result = await MappingsService.deleteRaaRaMapping(mappingId);
+
+    if (result.success) {
+      NotificationService.success('Éxito', 'Relación eliminada correctamente');
+      setIsEditModalOpen(false);
+      setSelectedMapping(null);
+      // Recargar la matriz
+      if (asignaturaId) {
+        loadMatrixData(asignaturaId);
+      }
+    } else {
+      NotificationService.error('Error', result.error || 'Error al eliminar la relación');
+    }
   };
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -312,7 +392,11 @@ export default function MatrizRAAvsRA() {
               </div>
               
               <Button 
-                onClick={() => router.push('/matriz-raa-ra/nueva')}
+                onClick={() => {
+                  // Marcar que el wizard viene de la pestaña
+                  localStorage.setItem('wizard_origin', 'tab');
+                  router.push('/matriz-raa-ra/nueva');
+                }}
                 className="bg-[#003366] hover:bg-[#002244] text-white gap-2"
               >
                 <Plus className="w-4 h-4" />
@@ -500,6 +584,24 @@ export default function MatrizRAAvsRA() {
           </div>
         </div>
       </Layout>
+
+      {/* Modal de edición */}
+      {isEditModalOpen && selectedMapping && (
+        <EditRaaRaMappingModal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setSelectedMapping(null);
+          }}
+          mappingId={selectedMapping.mappingId}
+          raaText={raaList.find(r => r.id === selectedMapping.raaId)?.descripcion || ''}
+          raText={raList.find(r => r.id === selectedMapping.raId)?.descripcion || ''}
+          nivelAporte={selectedMapping.nivelAporte}
+          justificacion={selectedMapping.justificacion}
+          onSave={handleSaveMapping}
+          onDelete={handleDeleteMapping}
+        />
+      )}
     </AcademicRoute>
   );
 }

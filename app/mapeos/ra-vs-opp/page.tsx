@@ -11,6 +11,7 @@ import { LearningOutcome, LearningOutcomesService } from "@/lib/learning-outcome
 import { ProgramObjective, ProgramObjectivesService } from "@/lib/program-objectives";
 import { getOppRaMatrix, MappingsService, type MappingResponse, type OppRaMapping } from "@/lib/mappings";
 import { Tooltip } from "@/components/ui/tooltip";
+import { AuthService } from "@/lib/auth";
 
 // Interfaces para los datos dinámicos
 interface MatrixRA {
@@ -35,6 +36,19 @@ export default function MatrizRAvsOPP() {
   const [lastMouseX, setLastMouseX] = useState(0);
   const [lastMouseY, setLastMouseY] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Obtener rol del usuario para controlar permisos de creación
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [canCreate, setCanCreate] = useState(false);
+
+  // Inicializar datos del usuario solo en el cliente
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const role = AuthService.getUserRole();
+      setUserRole(role);
+      setCanCreate(role === 'COORDINADOR');
+    }
+  }, []);
 
   // Estados para datos dinámicos del backend
   const [raList, setRaList] = useState<MatrixRA[]>([]);
@@ -236,13 +250,15 @@ export default function MatrizRAvsOPP() {
                   La tabla muestra la relación entre los objetivos de carrera (perfil profesional) y los resultados de aprendizaje (perfil de egreso) de una carrera.
                 </p>
               </div>
-              <Button 
-                onClick={() => router.push('/mapeos/ra-vs-opp/seleccion')}
-                className="bg-[#003366] hover:bg-[#002244] text-white gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Nueva Relación
-              </Button>
+              {canCreate && (
+                <Button 
+                  onClick={() => router.push('/mapeos/ra-vs-opp/seleccion')}
+                  className="bg-[#003366] hover:bg-[#002244] text-white gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Nueva Relación
+                </Button>
+              )}
             </div>
 
             <div className="flex items-center gap-4 text-sm">

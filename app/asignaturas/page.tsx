@@ -65,11 +65,11 @@ export default function Asignaturas() {
       asignatura.nombre.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesNivel = 
-      nivelReferencial === "" ||
+      nivelReferencial === "" || nivelReferencial === "todos" ||
       asignatura.nivelReferencial.toString() === nivelReferencial;
     
     const matchesCreditos = 
-      creditos === "" ||
+      creditos === "" || creditos === "todos" ||
       asignatura.creditos.toString() === creditos;
     
     return matchesSearch && matchesNivel && matchesCreditos;
@@ -123,6 +123,7 @@ export default function Asignaturas() {
                     <SelectValue placeholder="Nivel referencial" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
                     <SelectItem value="1">Nivel 1</SelectItem>
                     <SelectItem value="2">Nivel 2</SelectItem>
                     <SelectItem value="3">Nivel 3</SelectItem>
@@ -140,6 +141,7 @@ export default function Asignaturas() {
                     <SelectValue placeholder="Créditos" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
                     <SelectItem value="0">0 créditos</SelectItem>
                     <SelectItem value="1">1 crédito</SelectItem>
                     <SelectItem value="2">2 créditos</SelectItem>
@@ -218,6 +220,8 @@ export default function Asignaturas() {
                               title="Editar asignatura"
                               onClick={() => {
                                 // Guardar datos de asignatura en localStorage para edición
+                                console.log('Asignatura a editar (completa):', asignatura);
+                                console.log('nivelReferencial antes de guardar:', asignatura.nivelReferencial, typeof asignatura.nivelReferencial);
                                 localStorage.setItem('edit_asignatura', JSON.stringify(asignatura));
                                 router.push('/asignaturas/nueva');
                               }}

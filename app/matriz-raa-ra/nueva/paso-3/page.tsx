@@ -82,8 +82,15 @@ export default function RaaRaMatrix() {
           (window as any).reloadRaaRaMatrix();
         }
         
-        // Redirigir a la matriz
-        router.push('/asignaturas/nueva/matriz-raa-ra');
+        // Redirigir según el origen del wizard
+        const wizardOrigin = localStorage.getItem('wizard_origin');
+        localStorage.removeItem('wizard_origin'); // Limpiar después de usar
+        
+        if (wizardOrigin === 'sidebar') {
+          router.push('/mapeos/raa-vs-ra');
+        } else {
+          router.push('/asignaturas/nueva/matriz-raa-ra');
+        }
       } else {
         // Verificar si el error indica que la relación ya existe
         const errorMessage = result.error || '';
@@ -197,7 +204,15 @@ export default function RaaRaMatrix() {
             <Button
               variant="destructive"
               className="gap-2 h-10 px-6 rounded-md shadow-sm"
-              onClick={() => router.push("/asignaturas/nueva/matriz-raa-ra")}
+              onClick={() => {
+                const wizardOrigin = localStorage.getItem('wizard_origin');
+                localStorage.removeItem('wizard_origin');
+                if (wizardOrigin === 'sidebar') {
+                  router.push('/mapeos/raa-vs-ra');
+                } else {
+                  router.push('/asignaturas/nueva/matriz-raa-ra');
+                }
+              }}
               disabled={saving}
             >
               <X className="w-4 h-4" />

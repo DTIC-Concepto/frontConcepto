@@ -12,6 +12,7 @@ import { LearningOutcome, LearningOutcomesService } from "@/lib/learning-outcome
 import { EurAceCriterion, EurAceCriteriaService } from "@/lib/eur-ace-criteria";
 import { MappingsService, type MappingResponse, type EurAceMapping } from "@/lib/mappings";
 import { Tooltip } from "@/components/ui/tooltip";
+import { AuthService } from "@/lib/auth";
 
 // Interfaces para los datos dinámicos
 interface MatrixRA {
@@ -37,13 +38,27 @@ export default function MatrizRAvsEURACE() {
   const [lastMouseY, setLastMouseY] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Obtener rol del usuario para controlar permisos de creación
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [canCreate, setCanCreate] = useState(false);
+
   // Estados para datos dinámicos del backend
   const [raList, setRaList] = useState<MatrixRA[]>([]);
   const [euraceList, setEuraceList] = useState<MatrixEURACE[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Estado para carreraId - ahora dinámico según el usuario autenticado
-  const [carreraId, setCarreraId] = useState<number | null>(UserCareerService.getUserCarreraId());
+  const [carreraId, setCarreraId] = useState<number | null>(null);
+
+  // Inicializar datos del usuario solo en el cliente
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const role = AuthService.getUserRole();
+      setUserRole(role);
+      setCanCreate(role === 'COORDINADOR');
+      setCarreraId(UserCareerService.getUserCarreraId());
+    }
+  }, []);
 
   // Estados para el modal de creación de mapeo
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -58,7 +73,9 @@ export default function MatrizRAvsEURACE() {
 
   // Cargar datos del backend
   useEffect(() => {
-    loadMatrixData();
+    if (carreraId !== null) {
+      loadMatrixData();
+    }
   }, [carreraId]); // Recargar cuando cambie la carreraId
 
   // Función para recargar datos (llamar después de crear relaciones)
@@ -82,8 +99,15 @@ export default function MatrizRAvsEURACE() {
   const loadMatrixData = useCallback(async () => {
     try {
       setIsLoading(true);
+      
+      // Verificar que estamos en el cliente
+      if (typeof window === 'undefined') {
+        setIsLoading(false);
+        return;
+      }
+      
       const token = localStorage.getItem('auth_token');
-  const response = await fetch(`/api/mappings/ra-eur-ace/matrix/${carreraId ?? ''}`, {
+      const response = await fetch(`/api/mappings/ra-eur-ace/matrix/${carreraId ?? ''}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
@@ -251,13 +275,15 @@ export default function MatrizRAvsEURACE() {
                   La tabla muestra la relación entre los Resultados de Aprendizaje (RA) y los Criterios EUR-ACE.
                 </p>
               </div>
-              <Button 
-                onClick={() => router.push('/mapeos/ra-vs-eurace/seleccion')}
-                className="bg-[#003366] hover:bg-[#002244] text-white gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Nueva Relación
-              </Button>
+              {canCreate && (
+                <Button 
+                  onClick={() => router.push('/mapeos/ra-vs-eurace/seleccion')}
+                  className="bg-[#003366] hover:bg-[#002244] text-white gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Nueva Relación
+                </Button>
+              )}
             </div>
 
             <div className="flex items-center gap-4 text-sm">
