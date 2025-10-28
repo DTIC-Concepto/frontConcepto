@@ -9,7 +9,6 @@ from google.genai.errors import APIError
 
 # -----------------------------
 # Configuración GitHub y SonarCloud
-# VALORES DE PRUEBA (HARDCODEADOS)
 # -----------------------------
 GH_PAT = os.getenv("GH_PAT")
 SONAR_TOKEN = os.getenv("SONAR_TOKEN")
@@ -386,9 +385,10 @@ def main():
     )
     
     # Limpiar archivos temporales
-    for f in attachments_list:
-        if os.path.exists(f):
-            os.remove(f)
+    if not os.getenv("GITHUB_ACTIONS"):
+        for f in attachments_list:
+            if os.path.exists(f):
+                os.remove(f)
             
     print("Fin del pipeline.")
 
