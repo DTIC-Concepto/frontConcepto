@@ -141,26 +141,19 @@ export default function AsignaturasEurace() {
                          (facultiesData.facultades || facultiesData.items || facultiesData.data || []);
         setFaculties(faculties);
       } else {
-        // COORDINADOR/PROFESOR: Obtener todas las carreras y filtrar la suya
+        // COORDINADOR/PROFESOR: Obtener su carrera directamente del backend
         console.log('COORDINADOR - carreraId:', userCareerInfo.carreraId);
         
         if (userCareerInfo.carreraId) {
-          // Obtener todas las carreras
-          const careerResponse = await AuthService.authenticatedFetch('/api/carreras?estadoActivo=true');
+          // Obtener la carrera específica desde el endpoint /carreras/{id}
+          const careerResponse = await AuthService.authenticatedFetch(`/api/carreras/${userCareerInfo.carreraId}`);
+          
           if (!careerResponse.ok) {
-            throw new Error('Error al obtener carreras');
+            throw new Error('Error al obtener la carrera del coordinador');
           }
-          const careersData = await careerResponse.json();
-          const allCareers = careersData.data || (Array.isArray(careersData) ? careersData : []);
           
-          console.log('COORDINADOR - Total carreras:', allCareers.length);
-          console.log('COORDINADOR - Buscando carrera con id:', userCareerInfo.carreraId);
-          console.log('COORDINADOR - Todas las carreras completas:', allCareers);
-          
-          // Buscar la carrera del coordinador (comparar ambos como números)
-          const myCareer = allCareers.find((c: Career) => Number(c.id) === Number(userCareerInfo.carreraId));
-          
-          console.log('COORDINADOR - Mi carrera encontrada:', myCareer);
+          const myCareer = await careerResponse.json();
+          console.log('COORDINADOR - Mi carrera desde API:', myCareer);
           
           if (myCareer) {
             if (myCareer.facultadId) {
@@ -176,7 +169,6 @@ export default function AsignaturasEurace() {
                                  (facultiesData.facultades || facultiesData.items || facultiesData.data || []);
               
               console.log('COORDINADOR - Total facultades:', allFaculties.length);
-              console.log('COORDINADOR - Todas las facultades:', allFaculties.map((f: Faculty) => ({ id: f.id, tipo: typeof f.id, nombre: f.nombre })));
               
               // Filtrar solo la facultad del coordinador (comparar ambos como números)
               const myFaculty = allFaculties.find((f: Faculty) => Number(f.id) === Number(myCareer.facultadId));
@@ -205,11 +197,10 @@ export default function AsignaturasEurace() {
             }
           } else {
             // La carrera del coordinador no existe en el sistema
-            console.error('COORDINADOR - No se encontró la carrera con id:', userCareerInfo.carreraId);
-            console.error('COORDINADOR - IDs disponibles:', allCareers.map((c: Career) => c.id));
+            console.error('COORDINADOR - No se pudo obtener la carrera con id:', userCareerInfo.carreraId);
             NotificationService.error(
               'Carrera no encontrada',
-              `Tu usuario tiene asignada la carrera con ID ${userCareerInfo.carreraId}, pero esta carrera no existe en el sistema. Por favor contacta al administrador para que actualice tu carrera.`
+              `Tu usuario tiene asignada la carrera con ID ${userCareerInfo.carreraId}, pero no se pudo obtener del sistema. Por favor contacta al administrador.`
             );
           }
         } else {

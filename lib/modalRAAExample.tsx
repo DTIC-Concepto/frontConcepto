@@ -128,7 +128,7 @@ export function EditRelationshipModal({
                   className="w-full h-[99px] px-3 py-2 rounded-md border border-[#DEE1E6] text-[14px] text-gray-900 leading-[22px] font-roboto resize-none focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent bg-white"
                   value={justificacionText}
                   onChange={(e) => setJustificacionText(e.target.value)}
-                  maxLength={500}
+                  maxLength={1500}
                 />
                 <svg
                   className="absolute right-[2px] bottom-[2px] w-3 h-3 pointer-events-none"
@@ -155,9 +155,11 @@ export function EditRelationshipModal({
                   </defs>
                 </svg>
               </div>
-              <p className="text-[14px] text-gray-500 mt-[11px] leading-[20px] font-roboto">
-                Máximo: 500 caracteres
-              </p>
+              <div className="flex justify-end mt-[11px]">
+                <p className="text-[12px] leading-[16px] font-roboto text-gray-500">
+                  {justificacionText.length} de 1500
+                </p>
+              </div>
             </div>
           </div>
 

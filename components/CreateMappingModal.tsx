@@ -97,7 +97,13 @@ export default function CreateMappingModal({
               placeholder="Ingrese la justificación para esta relación..."
               className="min-h-[100px] resize-none"
               disabled={isLoading}
+              maxLength={1500}
             />
+            <div className="flex justify-end">
+              <p className="text-[12px] text-gray-500">
+                {justification.length} de 1500
+              </p>
+            </div>
           </div>
 
           {/* Botones */}

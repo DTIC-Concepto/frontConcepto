@@ -62,6 +62,8 @@ export default function MatrizRAAvsRA() {
   const [raList, setRaList] = useState<MatrixRA[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [asignaturaId, setAsignaturaId] = useState<number | null>(null);
+  const [asignaturaNombre, setAsignaturaNombre] = useState<string>("");
+  const [asignaturaCodigo, setAsignaturaCodigo] = useState<string>("");
 
   // Estados para el modal de edición
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -77,7 +79,7 @@ export default function MatrizRAAvsRA() {
   useEffect(() => {
     console.log('🔍 Matriz RAA vs RA - Iniciando carga de datos');
     
-    // Obtener asignaturaId del localStorage
+    // Obtener asignaturaId, nombre y código del localStorage
     const idFromStorage = typeof window !== 'undefined' 
       ? localStorage.getItem('current_asignatura_id') 
       : null;
@@ -88,6 +90,15 @@ export default function MatrizRAAvsRA() {
       const parsedId = parseInt(idFromStorage);
       console.log('✅ AsignaturaId válido:', parsedId);
       setAsignaturaId(parsedId);
+      
+      // Obtener nombre y código de la asignatura
+      if (typeof window !== 'undefined') {
+        const nombre = localStorage.getItem('current_asignatura_nombre') || "";
+        const codigo = localStorage.getItem('current_asignatura_codigo') || "";
+        setAsignaturaNombre(nombre);
+        setAsignaturaCodigo(codigo);
+      }
+      
       loadMatrixData(parsedId);
     } else {
       console.warn('⚠️ No se encontró current_asignatura_id en localStorage');
@@ -345,6 +356,13 @@ export default function MatrizRAAvsRA() {
       <Layout>
         <div className="p-6 lg:p-12">
           <div className="max-w-7xl mx-auto">
+            {/* Título de la Asignatura */}
+            {asignaturaNombre && asignaturaCodigo && (
+              <h2 className="text-2xl font-bold text-black mb-4">
+                {asignaturaNombre} ({asignaturaCodigo})
+              </h2>
+            )}
+            
             {/* Tabs */}
             <div className="bg-[#F3F4F6] rounded-lg p-1 mb-6">
               <Tabs value="matriz" className="w-full">

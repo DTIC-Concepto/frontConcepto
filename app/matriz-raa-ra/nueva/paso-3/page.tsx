@@ -79,9 +79,15 @@ export default function RaaRaMatrix() {
             <textarea
               value={justificacion}
               onChange={(e) => setJustificacion(e.target.value)}
+              maxLength={1500}
               className="w-full h-[136px] px-3 py-3 rounded-md border border-gray-200 text-sm text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#003366] resize-none"
               placeholder="Escribe tu justificación detallada aquí para la relación entre el Resultado de Aprendizaje de Asignatura y el Resultado de Aprendizaje seleccionados."
             />
+            <div className="flex justify-end mt-1">
+              <p className="text-xs text-gray-500">
+                {justificacion.length} de 1500
+              </p>
+            </div>
           </div>
 
           <div className="flex justify-end gap-4">
