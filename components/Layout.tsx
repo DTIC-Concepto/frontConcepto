@@ -161,8 +161,8 @@ export default function Layout({ children }: LayoutProps) {
       <div className="flex flex-1">
         {/* Sidebar */}
         <aside className="hidden md:flex w-56 lg:w-64 border-r border-[#DEE1E6] bg-white flex-col">
-          {userRole === 'COORDINADOR' || userRole === 'PROFESOR' ? (
-            // Nuevo sidebar con secciones para COORDINADOR y PROFESOR
+          {userRole === 'COORDINADOR' || userRole === 'PROFESOR' || userRole === 'CEI' ? (
+            // Nuevo sidebar con secciones para COORDINADOR, PROFESOR y CEI
             <nav className="flex-1 overflow-y-auto p-4">
               {/* CARRERA Section */}
               <div className="mb-6">
@@ -282,10 +282,10 @@ export default function Layout({ children }: LayoutProps) {
                 </h3>
                 <div className="space-y-1">
                   <Link
-                    href="/construccion"
+                    href="/reportes/asignaturas-ce"
                     className={cn(
                       "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                      pathname === "/construccion"
+                      pathname === "/reportes/asignaturas-ce"
                         ? "bg-[#F3F4F6] text-[#1E2128] font-medium"
                         : "text-[#565D6D] hover:bg-[#F3F4F6]"
                     )}
@@ -294,10 +294,10 @@ export default function Layout({ children }: LayoutProps) {
                     <span className="truncate">Asignaturas vs CE</span>
                   </Link>
                   <Link
-                    href="/construccion"
+                    href="/reportes/op-ra-asignatura"
                     className={cn(
                       "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                      pathname === "/construccion"
+                      pathname === "/reportes/op-ra-asignatura"
                         ? "bg-[#F3F4F6] text-[#1E2128] font-medium"
                         : "text-[#565D6D] hover:bg-[#F3F4F6]"
                     )}
@@ -307,96 +307,6 @@ export default function Layout({ children }: LayoutProps) {
                   </Link>
                 </div>
               </div>
-            </nav>
-          ) : userRole === 'CEI' ? (
-            // Sidebar para CEI
-            <nav className="p-2 space-y-1">
-              <Link
-                href="/dashboard"
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                  pathname === "/dashboard" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
-                )}
-              >
-                <Home className="w-5 h-5" />
-                <span>Inicio</span>
-              </Link>
-
-              <Link
-                href="/objetivos-carrera"
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors mt-1",
-                  pathname === "/objetivos-carrera" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
-                )}
-              >
-                <Layers className="w-5 h-5" />
-                <span>Objetivos de Carrera</span>
-              </Link>
-
-              <Link
-                href="/resultados-aprendizaje"
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors mt-1",
-                  pathname === "/resultados-aprendizaje" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
-                )}
-              >
-                <BookOpen className="w-5 h-5" />
-                <span>R. de Aprendizaje</span>
-              </Link>
-
-              <Link
-                href="/criterios-eur-ace"
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors mt-1",
-                  pathname === "/criterios-eur-ace" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
-                )}
-              >
-                <FileText className="w-5 h-5" />
-                <span>Criterios EUR-ACE</span>
-              </Link>
-
-              <div className="mt-1">
-                <button
-                  onClick={() => setEditorOpen(!editorOpen)}
-                  className="flex items-center justify-between w-full px-3 py-2 rounded-md text-sm font-medium text-[#565D6D] hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <Settings className="w-5 h-5" />
-                    <span>Editor Mapeos</span>
-                  </div>
-                  <ChevronDown className={cn("w-4 h-4 transition-transform", editorOpen && "rotate-180")} />
-                </button>
-                
-                {editorOpen && (
-                  <div className="ml-8 mt-1 space-y-1">
-                    <Link
-                      href="/mapeos/ra-vs-opp"
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-[#565D6D] hover:bg-gray-50 rounded-md"
-                    >
-                      <Table2 className="w-3 h-3" />
-                      <span>RA vs OPP</span>
-                    </Link>
-                    <Link
-                      href="/mapeos/ra-vs-eurace"
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-[#565D6D] hover:bg-gray-50 rounded-md"
-                    >
-                      <LayoutGrid className="w-3 h-3" />
-                      <span>RA vs EUR-ACE</span>
-                    </Link>
-                  </div>
-                )}
-              </div>
-
-              <Link
-                href="/perfil"
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors mt-1",
-                  pathname === "/perfil" ? "bg-[#F3F4F6] text-[#1E2128]" : "text-[#565D6D] hover:bg-gray-50"
-                )}
-              >
-                <User className="w-5 h-5" />
-                <span>Mi Perfil</span>
-              </Link>
             </nav>
           ) : (
             // Sidebar original para Administrador (por defecto)

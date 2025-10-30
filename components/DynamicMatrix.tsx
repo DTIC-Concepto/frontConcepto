@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Info, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMatrixNavigation } from '@/hooks/useMatrixNavigation';
 
@@ -27,6 +27,9 @@ export default function DynamicMatrix({
   verticalLabel,
   horizontalLabel
 }: MatrixProps) {
+  const horizontalScrollbarRef = useRef<HTMLDivElement>(null);
+  const verticalScrollbarRef = useRef<HTMLDivElement>(null);
+  
   const {
     canNavigateLeft,
     canNavigateRight,
@@ -40,6 +43,18 @@ export default function DynamicMatrix({
   });
 
   const visibleHorizontalHeaders = getVisibleColumns(horizontalHeaders);
+
+  const showHorizontalScrollbar = horizontalHeaders.length > 8;
+  const showVerticalScrollbar = verticalHeaders.length > 10;
+
+  // Sincronizar scrollbar horizontal con navegación
+  useEffect(() => {
+    if (horizontalScrollbarRef.current && showHorizontalScrollbar) {
+      const scrollPercentage = currentStartIndex / (horizontalHeaders.length - 8);
+      const maxScroll = horizontalScrollbarRef.current.scrollWidth - horizontalScrollbarRef.current.clientWidth;
+      horizontalScrollbarRef.current.scrollLeft = scrollPercentage * maxScroll;
+    }
+  }, [currentStartIndex, horizontalHeaders.length, showHorizontalScrollbar]);
 
   const hasRelationship = (verticalCode: string, horizontalCode: string) => {
     return relationships.some(rel => 
@@ -77,7 +92,7 @@ export default function DynamicMatrix({
       </div>
 
       {/* Navigation Controls */}
-      {horizontalHeaders.length > 8 && (
+      {showHorizontalScrollbar && (
         <div className="flex items-center justify-between bg-white rounded-lg shadow-sm p-4">
           <div className="flex items-center gap-2">
             <span className="text-sm text-[#565D6D] font-open-sans">
@@ -111,10 +126,25 @@ export default function DynamicMatrix({
         </div>
       )}
 
+      {/* Horizontal Scrollbar - shown at top when matrix is large */}
+      {showHorizontalScrollbar && (
+        <div className="mb-2">
+          <div
+            ref={horizontalScrollbarRef}
+            className="overflow-x-scroll overflow-y-hidden scrollbar-thin"
+            style={{ height: '16px' }}
+          >
+            <div style={{ width: `${horizontalHeaders.length * 150}px`, height: '1px' }} />
+          </div>
+        </div>
+      )}
+
       {/* Matrix Section */}
       <div className="bg-gray-100 rounded-lg p-2 overflow-hidden">
-        <div className="relative">
-          <table className="w-full border-separate" style={{ borderSpacing: '2px' }}>
+        <div className="relative flex gap-2">
+          {/* Matrix Table */}
+          <div className="flex-1 order-1">
+            <table className="w-full border-separate" style={{ borderSpacing: '2px' }}>
             <thead>
               <tr>
                 {/* Static corner cell */}
@@ -182,6 +212,20 @@ export default function DynamicMatrix({
               ))}
             </tbody>
           </table>
+          </div>
+          
+          {/* Vertical Scrollbar - shown on right when matrix is large */}
+          {showVerticalScrollbar && (
+            <div className="ml-2 order-2">
+              <div
+                ref={verticalScrollbarRef}
+                className="overflow-y-scroll overflow-x-hidden scrollbar-thin"
+                style={{ width: '16px', height: '500px' }}
+              >
+                <div style={{ height: `${verticalHeaders.length * 150}px`, width: '1px' }} />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

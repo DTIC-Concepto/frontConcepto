@@ -1,85 +1,38 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import AcademicRoute from "@/components/AcademicRoute";
 import { Steps } from "@/components/StepIndicator";
 import { Button } from "@/components/ui/button";
-import { Search, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { RaaService, type Raa } from "@/lib/raa";
-import NotificationService from "@/lib/notifications";
+import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 
-const ITEMS_PER_PAGE = 5;
+interface RAAItem {
+  code: string;
+  type: string;
+  description: string;
+}
+
+const raaData: RAAItem[] = [
+  { code: "1.1", type: "De Conocimiento", description: "Conocer los componentes, tecnología, información e impacto social de los sistemas de información" },
+  { code: "1.2", type: "De Conocimiento", description: "Conocer los componentes, tecnología, información e impacto social de los sistemas de información" },
+  { code: "1.3", type: "De Conocimiento", description: "Conocer los componentes, tecnología, información e impacto social de los sistemas de información" },
+  { code: "2.1", type: "De Conocimiento", description: "Conocer los componentes, tecnología, información e impacto social de los sistemas de información" },
+  { code: "2.2", type: "De Conocimiento", description: "Conocer los componentes, tecnología, información e impacto social de los sistemas de información" },
+];
 
 export default function RaaSelection() {
   const router = useRouter();
-  const [selectedRaa, setSelectedRaa] = useState<Raa | null>(null);
+  const [selectedRaa, setSelectedRaa] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [raaList, setRaaList] = useState<Raa[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [asignaturaId, setAsignaturaId] = useState<number | null>(null);
 
-  // Cargar RAAs del backend
-  useEffect(() => {
-    const loadRaas = async () => {
-      try {
-        setLoading(true);
-        
-        // Obtener asignaturaId del localStorage
-        const idFromStorage = typeof window !== 'undefined' 
-          ? localStorage.getItem('current_asignatura_id') 
-          : null;
-        
-        if (!idFromStorage) {
-          NotificationService.error(
-            'Error',
-            'No se encontró la asignatura. Por favor, cree una asignatura primero.'
-          );
-          router.push('/asignaturas/nueva');
-          return;
-        }
-        
-        const asigId = parseInt(idFromStorage);
-        setAsignaturaId(asigId);
-        
-        const data = await RaaService.getRaas(asigId);
-        setRaaList(data);
-      } catch (error) {
-        console.error('Error cargando RAAs:', error);
-        NotificationService.error(
-          'Error',
-          'Error al cargar los resultados de aprendizaje de la asignatura'
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadRaas();
-  }, [router]);
-
-  const filteredRaas = useMemo(() => {
-    return raaList.filter(
-      (raa) =>
-        raa.codigo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        raa.descripcion.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [searchQuery, raaList]);
-
-  const totalPages = Math.ceil(filteredRaas.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedRaas = filteredRaas.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-
-  const handleRowClick = (raa: Raa) => {
-    setSelectedRaa(raa);
+  const handleRowClick = (code: string) => {
+    setSelectedRaa(code);
   };
 
   const handleNext = () => {
     if (selectedRaa) {
-      // Guardar la selección en localStorage para el siguiente paso
-      localStorage.setItem('selectedRaa', JSON.stringify(selectedRaa));
       router.push("/matriz-raa-ra/nueva/paso-2");
     }
   };
@@ -117,78 +70,41 @@ export default function RaaSelection() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {loading ? (
-                  <tr>
-                    <td colSpan={3} className="px-7 py-8 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <Loader2 className="w-5 h-5 animate-spin text-[#003366]" />
-                        <span className="text-[#565D6D] font-open-sans">Cargando RAAs...</span>
-                      </div>
+                {raaData.map((item) => (
+                  <tr
+                    key={item.code}
+                    onClick={() => handleRowClick(item.code)}
+                    className={`cursor-pointer transition-colors ${
+                      selectedRaa === item.code
+                        ? "bg-blue-50"
+                        : "hover:bg-gray-50"
+                    }`}
+                  >
+                    <td className="px-7 py-6 text-center">
+                      <span className="text-sm font-semibold text-gray-900">{item.code}</span>
+                    </td>
+                    <td className="px-4 py-6">
+                      <span className="text-sm text-gray-500">{item.type}</span>
+                    </td>
+                    <td className="px-4 py-6">
+                      <span className="text-xs text-gray-900 text-center block">{item.description}</span>
                     </td>
                   </tr>
-                ) : paginatedRaas.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="px-7 py-8 text-center">
-                      <span className="text-[#565D6D] font-open-sans">
-                        {searchQuery ? 'No se encontraron RAAs que coincidan con la búsqueda' : 'No hay RAAs disponibles para esta asignatura'}
-                      </span>
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedRaas.map((raa) => (
-                    <tr
-                      key={raa.id}
-                      onClick={() => handleRowClick(raa)}
-                      className={`cursor-pointer transition-colors ${
-                        selectedRaa?.id === raa.id
-                          ? "bg-blue-50"
-                          : "hover:bg-gray-50"
-                      }`}
-                    >
-                      <td className="px-7 py-6">
-                        <span className="text-sm font-semibold text-gray-900">{raa.codigo}</span>
-                      </td>
-                      <td className="px-4 py-6">
-                        <span className="text-sm text-gray-900">{raa.tipo}</span>
-                      </td>
-                      <td className="px-4 py-6">
-                        <span className="text-sm text-gray-900">{raa.descripcion}</span>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
 
             <div className="flex items-center justify-center gap-4 py-4 border-t border-gray-100">
-              <button 
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="flex items-center gap-2 text-sm text-gray-900 disabled:text-gray-400 disabled:cursor-not-allowed"
-              >
+              <button className="flex items-center gap-2 text-sm text-gray-900">
                 <ChevronLeft className="w-4 h-4" />
                 Previous
               </button>
-              <div className="flex items-center gap-2">
-                {[...Array(totalPages)].map((_, idx) => (
-                  <button
-                    key={idx + 1}
-                    onClick={() => setCurrentPage(idx + 1)}
-                    className={`w-8 h-8 rounded text-sm font-medium ${
-                      currentPage === idx + 1
-                        ? 'bg-[#171A1F] text-white'
-                        : 'text-[#171A1F] hover:bg-gray-100'
-                    }`}
-                  >
-                    {idx + 1}
-                  </button>
-                ))}
+              <div className="flex items-center gap-6">
+                <button className="text-sm text-gray-900">1</button>
+                <button className="text-sm text-gray-900">2</button>
+                <button className="text-sm text-gray-900">3</button>
               </div>
-              <button 
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="flex items-center gap-2 text-sm text-gray-900 disabled:text-gray-400 disabled:cursor-not-allowed"
-              >
+              <button className="flex items-center gap-2 text-sm text-gray-900">
                 Next
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -199,7 +115,7 @@ export default function RaaSelection() {
             <Button
               variant="destructive"
               className="h-10 px-6 rounded-md shadow-sm"
-              onClick={() => router.push("/asignaturas/nueva/matriz-raa-ra")}
+              onClick={() => router.push("/construccion")}
             >
               Cancelar
             </Button>

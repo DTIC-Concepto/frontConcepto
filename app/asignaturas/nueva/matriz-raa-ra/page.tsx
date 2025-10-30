@@ -53,6 +53,8 @@ export default function MatrizRAAvsRA() {
   const [lastMouseX, setLastMouseX] = useState(0);
   const [lastMouseY, setLastMouseY] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const horizontalScrollbarRef = useRef<HTMLDivElement>(null);
+  const verticalScrollbarRef = useRef<HTMLDivElement>(null);
   const [nivelAporteFilter, setNivelAporteFilter] = useState<string>("");
 
   // Estados para datos dinámicos del backend
@@ -221,6 +223,26 @@ export default function MatrizRAAvsRA() {
   // Límites de navegación
   const maxScrollX = Math.max(0, (raList.length - VISIBLE_COLUMNS) * CELL_WIDTH);
   const maxScrollY = Math.max(0, (raaList.length - VISIBLE_ROWS) * CELL_HEIGHT);
+
+  const showHorizontalScrollbar = raList.length > VISIBLE_COLUMNS;
+  const showVerticalScrollbar = raaList.length > VISIBLE_ROWS;
+
+  // Sincronizar scrollbars con el estado de scroll
+  useEffect(() => {
+    if (horizontalScrollbarRef.current && showHorizontalScrollbar) {
+      const scrollPercentage = maxScrollX > 0 ? scrollX / maxScrollX : 0;
+      const maxScroll = horizontalScrollbarRef.current.scrollWidth - horizontalScrollbarRef.current.clientWidth;
+      horizontalScrollbarRef.current.scrollLeft = scrollPercentage * maxScroll;
+    }
+  }, [scrollX, maxScrollX, showHorizontalScrollbar]);
+
+  useEffect(() => {
+    if (verticalScrollbarRef.current && showVerticalScrollbar) {
+      const scrollPercentage = maxScrollY > 0 ? scrollY / maxScrollY : 0;
+      const maxScroll = verticalScrollbarRef.current.scrollHeight - verticalScrollbarRef.current.clientHeight;
+      verticalScrollbarRef.current.scrollTop = scrollPercentage * maxScroll;
+    }
+  }, [scrollY, maxScrollY, showVerticalScrollbar]);
 
   const hasRelationship = (raaId: number, raId: number) => {
     return mappings.some(mapping => 
@@ -405,6 +427,26 @@ export default function MatrizRAAvsRA() {
             </div>
           </div>
 
+          {/* Horizontal Scrollbar - shown at top when matrix is large */}
+          {showHorizontalScrollbar && (
+            <div className="mb-2">
+              <div
+                ref={horizontalScrollbarRef}
+                className="overflow-x-scroll overflow-y-hidden scrollbar-thin"
+                style={{ height: '16px' }}
+                onScroll={(e) => {
+                  const target = e.target as HTMLDivElement;
+                  if (target.scrollWidth > target.clientWidth) {
+                    const scrollPercentage = target.scrollLeft / (target.scrollWidth - target.clientWidth);
+                    setScrollX(scrollPercentage * maxScrollX);
+                  }
+                }}
+              >
+                <div style={{ width: `${raList.length * 150}px`, height: '1px' }} />
+              </div>
+            </div>
+          )}
+
           {/* Matrix Section */}
           {isLoading ? (
             <div className="bg-white rounded-lg shadow-sm p-12">
@@ -432,18 +474,20 @@ export default function MatrizRAAvsRA() {
             </div>
           ) : (
           <div className="bg-gray-100 rounded-lg p-2 overflow-hidden">
-            <div 
-              ref={containerRef}
-              className="relative cursor-grab active:cursor-grabbing select-none mx-auto overflow-hidden"
-              style={{
-                width: HEADER_WIDTH + (VISIBLE_COLUMNS * CELL_WIDTH) + 20,
-                height: CELL_HEIGHT + (VISIBLE_ROWS * CELL_HEIGHT) + 20
-              }}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-            >
+            <div className="flex gap-2">
+              {/* Matrix container */}
+              <div 
+                ref={containerRef}
+                className="relative cursor-grab active:cursor-grabbing select-none mx-auto overflow-hidden flex-1"
+                style={{
+                  width: HEADER_WIDTH + (VISIBLE_COLUMNS * CELL_WIDTH) + 20,
+                  height: CELL_HEIGHT + (VISIBLE_ROWS * CELL_HEIGHT) + 20
+                }}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+              >
               {/* Data Cells (scrollable both directions) */}
               <div 
                 className="absolute z-10"
@@ -579,6 +623,27 @@ export default function MatrizRAAvsRA() {
                 </div>
               </div>
             </div>
+            
+            {/* Vertical Scrollbar - shown on right when matrix is large */}
+            {showVerticalScrollbar && (
+              <div className="ml-2">
+                <div
+                  ref={verticalScrollbarRef}
+                  className="overflow-y-scroll overflow-x-hidden scrollbar-thin"
+                  style={{ width: '16px', height: '480px' }}
+                  onScroll={(e) => {
+                    const target = e.target as HTMLDivElement;
+                    if (target.scrollHeight > target.clientHeight) {
+                      const scrollPercentage = target.scrollTop / (target.scrollHeight - target.clientHeight);
+                      setScrollY(scrollPercentage * maxScrollY);
+                    }
+                  }}
+                >
+                  <div style={{ height: `${raaList.length * 150}px`, width: '1px' }} />
+                </div>
+              </div>
+            )}
+          </div>
           </div>
           )}
           </div>
