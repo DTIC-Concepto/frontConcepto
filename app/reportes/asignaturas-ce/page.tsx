@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import AcademicRoute from "@/components/AcademicRoute";
@@ -40,6 +40,11 @@ export default function AsignaturasEurace() {
   const [showFacultyDropdown, setShowFacultyDropdown] = useState(false);
   const [showCareerDropdown, setShowCareerDropdown] = useState(false);
   const [searchAsignatura, setSearchAsignatura] = useState<string>("");
+  const [searchFacultad, setSearchFacultad] = useState<string>("");
+  const [filteredFaculties, setFilteredFaculties] = useState<Faculty[]>([]);
+
+  // Refs para detectar clics fuera
+  const facultyDropdownRef = useRef<HTMLDivElement>(null);
 
   // Estados para los checkboxes de nivel de aporte
   const [altoChecked, setAltoChecked] = useState(false);
@@ -50,6 +55,62 @@ export default function AsignaturasEurace() {
   useEffect(() => {
     loadEurAceCriteria();
   }, []);
+
+  // Restaurar filtros desde URL al montar el componente
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const facultadId = urlParams.get('facultadId');
+    const facultadNombre = urlParams.get('facultadNombre');
+    const carreraId = urlParams.get('carreraId');
+    const niveles = urlParams.getAll('nivel');
+
+    // Si hay parámetros en la URL, cargar facultades primero
+    if (facultadId || carreraId) {
+      loadFaculties();
+    }
+
+    if (facultadId) {
+      setSelectedFacultyId(facultadId);
+      if (facultadNombre) {
+        setSearchFacultad(facultadNombre);
+      }
+    }
+    if (carreraId) {
+      setSelectedCareerId(carreraId);
+    }
+    if (niveles.length > 0) {
+      setAltoChecked(niveles.includes('alto'));
+      setMedioChecked(niveles.includes('medio'));
+      setBajoChecked(niveles.includes('bajo'));
+    }
+  }, []);
+
+  // Manejar clics fuera del dropdown de facultad
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (facultyDropdownRef.current && !facultyDropdownRef.current.contains(event.target as Node)) {
+        setShowFacultyDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Filtrar facultades cuando cambia el término de búsqueda
+  useEffect(() => {
+    if (!searchFacultad.trim()) {
+      setFilteredFaculties(faculties);
+    } else {
+      const term = searchFacultad.toLowerCase();
+      const filtered = faculties.filter(faculty => 
+        faculty.nombre.toLowerCase().includes(term)
+      );
+      setFilteredFaculties(filtered);
+    }
+  }, [searchFacultad, faculties]);
 
   // Cargar carreras cuando se selecciona una facultad
   useEffect(() => {
@@ -366,8 +427,9 @@ export default function AsignaturasEurace() {
     }
   };
 
-  const handleFacultySelect = (facultyId: string) => {
+  const handleFacultySelect = (facultyId: string, facultyName: string) => {
     setSelectedFacultyId(facultyId);
+    setSearchFacultad(facultyName);
     setShowFacultyDropdown(false);
     setSelectedCareerId(""); // Resetear carrera cuando cambia facultad
   };
@@ -375,12 +437,6 @@ export default function AsignaturasEurace() {
   const handleCareerSelect = (careerId: string) => {
     setSelectedCareerId(careerId);
     setShowCareerDropdown(false);
-  };
-
-  const getSelectedFacultyName = () => {
-    if (!selectedFacultyId) return "Seleccione una facultad";
-    const faculty = faculties.find(f => f.id?.toString() === selectedFacultyId);
-    return faculty?.nombre || "Seleccione una facultad";
   };
 
   const getSelectedCareerName = () => {
@@ -407,8 +463,17 @@ export default function AsignaturasEurace() {
   const handleCellClick = (asignatura: Asignatura, criterioId: number) => {
     // Solo navegar si hay relación
     if (asignatura.id && hasRelationship(asignatura.id, criterioId)) {
-      // Navegar a la página de detalle con el código de la asignatura y el carreraId
-      router.push(`/reportes/asignaturas-ce/${asignatura.codigo}?carreraId=${selectedCareerId}`);
+      // Construir query params con todos los filtros
+      const params = new URLSearchParams();
+      params.set('carreraId', selectedCareerId);
+      params.set('facultadId', selectedFacultyId);
+      params.set('facultadNombre', searchFacultad);
+      if (altoChecked) params.append('nivel', 'alto');
+      if (medioChecked) params.append('nivel', 'medio');
+      if (bajoChecked) params.append('nivel', 'bajo');
+      
+      // Navegar a la página de detalle con todos los parámetros
+      router.push(`/reportes/asignaturas-ce/${asignatura.codigo}?${params.toString()}`);
     }
   };
 
@@ -429,22 +494,30 @@ export default function AsignaturasEurace() {
           <div className="bg-white rounded-[10px] border border-[#DEE1E6] shadow-sm p-4 md:p-5">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8 mb-6">
               <div>
-                <label className="text-[#323234] font-roboto text-sm font-medium mb-3 block">
+                <label className="text-[#323234] font-roboto text-sm font-semibold mb-3 block">
                   Facultad
                 </label>
-                <div className="relative faculty-dropdown">
+                <div className="relative faculty-dropdown" ref={facultyDropdownRef}>
                   <Input
-                    className="pr-10 border-[#DEE1E6] cursor-pointer"
-                    value={getSelectedFacultyName()}
-                    readOnly
-                    onClick={() => {
-                      setShowFacultyDropdown(!showFacultyDropdown);
+                    type="text"
+                    value={searchFacultad}
+                    onChange={(e) => {
+                      setSearchFacultad(e.target.value);
+                      setShowFacultyDropdown(true);
                       if (faculties.length === 0) {
                         loadFaculties();
                       }
                     }}
+                    onFocus={() => {
+                      setShowFacultyDropdown(true);
+                      if (faculties.length === 0) {
+                        loadFaculties();
+                      }
+                    }}
+                    placeholder="Buscar facultad..."
+                    className="pr-10 border-[#DEE1E6]"
                   />
-                  <ChevronDown 
+                  <Search 
                     className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#565D6D] pointer-events-none" 
                   />
                   {showFacultyDropdown && (
@@ -453,16 +526,16 @@ export default function AsignaturasEurace() {
                         <div className="p-3 text-center text-[#565D6D] text-sm">
                           Cargando...
                         </div>
-                      ) : faculties.length === 0 ? (
+                      ) : filteredFaculties.length === 0 ? (
                         <div className="p-3 text-center text-[#565D6D] text-sm">
                           No hay facultades disponibles
                         </div>
                       ) : (
-                        faculties.map((faculty) => (
+                        filteredFaculties.map((faculty) => (
                           <div
                             key={faculty.id}
                             className="p-3 hover:bg-gray-50 cursor-pointer text-[#323234] text-sm"
-                            onClick={() => handleFacultySelect(faculty.id?.toString() || "")}
+                            onClick={() => handleFacultySelect(faculty.id?.toString() || "", faculty.nombre)}
                           >
                             {faculty.nombre}
                           </div>
@@ -474,7 +547,7 @@ export default function AsignaturasEurace() {
               </div>
 
               <div>
-                <label className="text-[#323234] font-roboto text-sm font-medium mb-3 block">
+                <label className="text-[#323234] font-roboto text-sm font-semibold mb-3 block">
                   Carrera
                 </label>
                 <div className="relative career-dropdown">
@@ -515,10 +588,10 @@ export default function AsignaturasEurace() {
               </div>
 
               <div>
-                <label className="text-[#323234] font-roboto text-sm font-medium mb-2 block">
+                <label className="text-[#323234] font-roboto text-sm font-semibold mb-3 block">
                   Nivel de aporte
                 </label>
-                <div className="flex flex-wrap gap-3 md:gap-4">
+                <div className="flex flex-wrap gap-3 md:gap-4 h-10 items-center">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <div 
                       onClick={() => setAltoChecked(!altoChecked)}
@@ -561,13 +634,13 @@ export default function AsignaturasEurace() {
                 </div>
               </div>
             </div>
-
-            {shouldShowTable() && (
-              <p className="text-[#323234] font-roboto text-sm md:text-base">
-                Haga clic en un cruce para ver el detalle de la relación:
-              </p>
-            )}
           </div>
+
+          {shouldShowTable() && (
+            <p className="text-[#323234] font-roboto text-sm md:text-base font-semibold" style={{ marginBottom: '16px' }}>
+              Haga clic en un cruce para ver el detalle de la relación:
+            </p>
+          )}
 
           {shouldShowTable() && (
             <div className="bg-white rounded-[10px] border border-[#DEE1E6] shadow-sm p-3 md:p-6 overflow-hidden">
@@ -579,14 +652,14 @@ export default function AsignaturasEurace() {
                       <th className="px-0 py-0 sticky left-0 z-20" style={{ minWidth: '280px' }}>
                         <div className="bg-white rounded border border-[#DEE1E6] h-[50px] flex items-center px-3">
                           <div className="relative flex-1">
-                            <input
+                            <Input
                               type="text"
                               value={searchAsignatura}
                               onChange={(e) => setSearchAsignatura(e.target.value)}
                               placeholder="Buscar asignatura..."
-                              className="w-full px-4 py-2 pr-10 border border-[#DEE1E6] rounded-md focus:outline-none focus:ring-2 focus:ring-[#003366] text-sm placeholder:font-semibold"
+                              className="pr-10 border-[#DEE1E6] h-auto placeholder:font-normal placeholder:text-sm"
                             />
-                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#565D6D] pointer-events-none" />
+                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#565D6D] pointer-events-none" />
                           </div>
                         </div>
                       </th>

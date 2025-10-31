@@ -214,7 +214,14 @@ export default function Trazabilidad() {
               <Button
                 variant="outline"
                 className="border-[#DEE1E6] text-[#323234] mt-4"
-                onClick={() => router.back()}
+                onClick={() => {
+                  const urlParams = new URLSearchParams(window.location.search);
+                  const queryString = urlParams.toString();
+                  const targetUrl = queryString 
+                    ? `/reportes/asignaturas-ce?${queryString}`
+                    : '/reportes/asignaturas-ce';
+                  router.push(targetUrl);
+                }}
               >
                 Regresar
               </Button>
@@ -238,7 +245,15 @@ export default function Trazabilidad() {
             <Button
               variant="outline"
               className="border-[#DEE1E6] text-[#323234] w-full md:w-auto"
-              onClick={() => router.back()}
+              onClick={() => {
+                // Construir URL con los parámetros preservados de la navegación anterior
+                const urlParams = new URLSearchParams(window.location.search);
+                const queryString = urlParams.toString();
+                const targetUrl = queryString 
+                  ? `/reportes/asignaturas-ce?${queryString}`
+                  : '/reportes/asignaturas-ce';
+                router.push(targetUrl);
+              }}
             >
               Regresar
             </Button>
