@@ -29,9 +29,11 @@ function ResultadosAprendizajeContent() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [asignaturaId, setAsignaturaId] = useState<number | null>(null);
+  const [asignaturaNombre, setAsignaturaNombre] = useState<string>("");
+  const [asignaturaCodigo, setAsignaturaCodigo] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Obtener asignaturaId del query param o localStorage
+  // Obtener asignaturaId, nombre y código del query param o localStorage
   useEffect(() => {
     const idFromParams = searchParams.get('asignaturaId');
     const idFromStorage = typeof window !== 'undefined' 
@@ -42,6 +44,15 @@ function ResultadosAprendizajeContent() {
     
     if (id) {
       setAsignaturaId(id);
+      
+      // Obtener nombre y código de la asignatura
+      if (typeof window !== 'undefined') {
+        const nombre = localStorage.getItem('current_asignatura_nombre') || "";
+        const codigo = localStorage.getItem('current_asignatura_codigo') || "";
+        setAsignaturaNombre(nombre);
+        setAsignaturaCodigo(codigo);
+      }
+      
       loadRaas(id);
     } else {
       NotificationService.warning(
@@ -86,6 +97,13 @@ function ResultadosAprendizajeContent() {
       <Layout>
         <div className="p-6 lg:p-12">
           <div className="max-w-7xl mx-auto">
+            {/* Título de la Asignatura */}
+            {asignaturaNombre && asignaturaCodigo && (
+              <h2 className="text-2xl font-bold text-black mb-4">
+                {asignaturaNombre} ({asignaturaCodigo})
+              </h2>
+            )}
+            
             {/* Tabs */}
             <div className="bg-[#F3F4F6] rounded-lg p-1 mb-6">
               <Tabs value="raa" className="w-full">

@@ -68,3 +68,28 @@
     font-family: 'Open Sans', -apple-system, Roboto, Helvetica, sans-serif;
   }
 }
+
+/* Custom scrollbar styles */
+.scrollbar-thin {
+  scrollbar-width: auto;
+  scrollbar-color: #9ca3af transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #9ca3af;
+  border-radius: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}

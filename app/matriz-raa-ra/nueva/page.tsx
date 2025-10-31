@@ -1,76 +1,67 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import AcademicRoute from "@/components/AcademicRoute";
 import { Steps } from "@/components/StepIndicator";
 import { Button } from "@/components/ui/button";
-import { Search, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { RaaService, type Raa } from "@/lib/raa";
 import NotificationService from "@/lib/notifications";
-
-const ITEMS_PER_PAGE = 5;
 
 export default function RaaSelection() {
   const router = useRouter();
   const [selectedRaa, setSelectedRaa] = useState<Raa | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [raaList, setRaaList] = useState<Raa[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [filteredRaaList, setFilteredRaaList] = useState<Raa[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [asignaturaId, setAsignaturaId] = useState<number | null>(null);
+  const itemsPerPage = 5;
 
-  // Cargar RAAs del backend
+  // Cargar RAAs desde el backend
   useEffect(() => {
-    const loadRaas = async () => {
-      try {
-        setLoading(true);
-        
-        // Obtener asignaturaId del localStorage
-        const idFromStorage = typeof window !== 'undefined' 
-          ? localStorage.getItem('current_asignatura_id') 
-          : null;
-        
-        if (!idFromStorage) {
-          NotificationService.error(
-            'Error',
-            'No se encontró la asignatura. Por favor, cree una asignatura primero.'
-          );
-          router.push('/asignaturas/nueva');
-          return;
-        }
-        
-        const asigId = parseInt(idFromStorage);
-        setAsignaturaId(asigId);
-        
-        const data = await RaaService.getRaas(asigId);
-        setRaaList(data);
-      } catch (error) {
-        console.error('Error cargando RAAs:', error);
-        NotificationService.error(
-          'Error',
-          'Error al cargar los resultados de aprendizaje de la asignatura'
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadRaas();
-  }, [router]);
+  }, []);
 
-  const filteredRaas = useMemo(() => {
-    return raaList.filter(
-      (raa) =>
+  // Filtrar RAAs cuando cambia el término de búsqueda
+  useEffect(() => {
+    if (searchQuery.trim() === "") {
+      setFilteredRaaList(raaList);
+    } else {
+      const filtered = raaList.filter(raa => 
         raa.codigo.toLowerCase().includes(searchQuery.toLowerCase()) ||
         raa.descripcion.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+      );
+      setFilteredRaaList(filtered);
+    }
+    setCurrentPage(1);
   }, [searchQuery, raaList]);
 
-  const totalPages = Math.ceil(filteredRaas.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedRaas = filteredRaas.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const loadRaas = async () => {
+    try {
+      setIsLoading(true);
+      const asignaturaId = typeof window !== 'undefined' 
+        ? localStorage.getItem('current_asignatura_id')
+        : null;
+      
+      if (!asignaturaId) {
+        NotificationService.error('Error', 'No se encontró la asignatura seleccionada');
+        router.push('/asignaturas');
+        return;
+      }
+
+      const raas = await RaaService.getRaas(parseInt(asignaturaId));
+      setRaaList(raas);
+      setFilteredRaaList(raas);
+    } catch (error) {
+      console.error('Error cargando RAAs:', error);
+      NotificationService.error('Error', 'No se pudieron cargar los resultados de aprendizaje');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleRowClick = (raa: Raa) => {
     setSelectedRaa(raa);
@@ -78,11 +69,29 @@ export default function RaaSelection() {
 
   const handleNext = () => {
     if (selectedRaa) {
-      // Guardar la selección en localStorage para el siguiente paso
-      localStorage.setItem('selectedRaa', JSON.stringify(selectedRaa));
+      // Guardar RAA seleccionado en localStorage
+      localStorage.setItem('selected_raa', JSON.stringify(selectedRaa));
       router.push("/matriz-raa-ra/nueva/paso-2");
     }
   };
+
+  const handleCancel = () => {
+    const origin = typeof window !== 'undefined' 
+      ? localStorage.getItem('wizard_origin') 
+      : null;
+    
+    if (origin === 'sidebar') {
+      router.push('/mapeos/raa-vs-ra');
+    } else {
+      router.push('/asignaturas/nueva/matriz-raa-ra');
+    }
+  };
+
+  // Paginación
+  const totalPages = Math.ceil(filteredRaaList.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentRaas = filteredRaaList.slice(startIndex, endIndex);
 
   return (
     <AcademicRoute>
@@ -107,99 +116,100 @@ export default function RaaSelection() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="px-7 py-3.5 text-left text-sm font-normal text-gray-500">Código</th>
-                  <th className="px-7 py-3.5 text-left text-sm font-normal text-gray-500">Tipo</th>
-                  <th className="px-7 py-3.5 text-center text-sm font-normal text-gray-500">Descripción</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {loading ? (
+          {isLoading ? (
+            <div className="bg-white rounded-lg shadow-sm p-12">
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#003366]"></div>
+                <span className="ml-3 text-[#565D6D]">Cargando RAAs...</span>
+              </div>
+            </div>
+          ) : currentRaas.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-sm p-12">
+              <div className="text-center text-[#565D6D]">
+                <p className="text-lg mb-2">No hay resultados disponibles</p>
+                <p className="text-sm">
+                  {searchQuery ? 'No se encontraron RAAs que coincidan con la búsqueda.' : 'No se encontraron RAAs para esta asignatura.'}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-100">
                   <tr>
-                    <td colSpan={3} className="px-7 py-8 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <Loader2 className="w-5 h-5 animate-spin text-[#003366]" />
-                        <span className="text-[#565D6D] font-open-sans">Cargando RAAs...</span>
-                      </div>
-                    </td>
+                    <th className="px-7 py-3.5 text-left text-sm font-normal text-gray-500">Código</th>
+                    <th className="px-7 py-3.5 text-left text-sm font-normal text-gray-500">Tipo</th>
+                    <th className="px-7 py-3.5 text-center text-sm font-normal text-gray-500">Descripción</th>
                   </tr>
-                ) : paginatedRaas.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="px-7 py-8 text-center">
-                      <span className="text-[#565D6D] font-open-sans">
-                        {searchQuery ? 'No se encontraron RAAs que coincidan con la búsqueda' : 'No hay RAAs disponibles para esta asignatura'}
-                      </span>
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedRaas.map((raa) => (
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {currentRaas.map((item) => (
                     <tr
-                      key={raa.id}
-                      onClick={() => handleRowClick(raa)}
+                      key={item.id}
+                      onClick={() => handleRowClick(item)}
                       className={`cursor-pointer transition-colors ${
-                        selectedRaa?.id === raa.id
+                        selectedRaa?.id === item.id
                           ? "bg-blue-50"
                           : "hover:bg-gray-50"
                       }`}
                     >
-                      <td className="px-7 py-6">
-                        <span className="text-sm font-semibold text-gray-900">{raa.codigo}</span>
+                      <td className="px-7 py-6 text-center">
+                        <span className="text-sm font-semibold text-gray-900">{item.codigo}</span>
                       </td>
                       <td className="px-4 py-6">
-                        <span className="text-sm text-gray-900">{raa.tipo}</span>
+                        <span className="text-sm text-gray-500">{item.tipo}</span>
                       </td>
                       <td className="px-4 py-6">
-                        <span className="text-sm text-gray-900">{raa.descripcion}</span>
+                        <span className="text-xs text-gray-900 text-center block">{item.descripcion}</span>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
 
-            <div className="flex items-center justify-center gap-4 py-4 border-t border-gray-100">
-              <button 
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="flex items-center gap-2 text-sm text-gray-900 disabled:text-gray-400 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Previous
-              </button>
-              <div className="flex items-center gap-2">
-                {[...Array(totalPages)].map((_, idx) => (
-                  <button
-                    key={idx + 1}
-                    onClick={() => setCurrentPage(idx + 1)}
-                    className={`w-8 h-8 rounded text-sm font-medium ${
-                      currentPage === idx + 1
-                        ? 'bg-[#171A1F] text-white'
-                        : 'text-[#171A1F] hover:bg-gray-100'
-                    }`}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-4 py-4 border-t border-gray-100">
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="flex items-center gap-2 text-sm text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {idx + 1}
+                    <ChevronLeft className="w-4 h-4" />
+                    Anterior
                   </button>
-                ))}
-              </div>
-              <button 
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="flex items-center gap-2 text-sm text-gray-900 disabled:text-gray-400 disabled:cursor-not-allowed"
-              >
-                Next
-                <ChevronRight className="w-4 h-4" />
-              </button>
+                  <div className="flex items-center gap-2">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`text-sm px-3 py-1 rounded ${
+                          currentPage === page 
+                            ? 'bg-[#003366] text-white' 
+                            : 'text-gray-900 hover:bg-gray-100'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                  </div>
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="flex items-center gap-2 text-sm text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Siguiente
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
+          )}
 
           <div className="flex justify-end gap-4 mt-6">
             <Button
               variant="destructive"
               className="h-10 px-6 rounded-md shadow-sm"
-              onClick={() => router.push("/asignaturas/nueva/matriz-raa-ra")}
+              onClick={handleCancel}
             >
               Cancelar
             </Button>
@@ -212,7 +222,7 @@ export default function RaaSelection() {
                   : "bg-gray-200 text-white hover:bg-gray-200 cursor-not-allowed"
               }`}
             >
-              Guardar
+              Siguiente
             </Button>
           </div>
         </div>

@@ -181,11 +181,14 @@ export default function JustificarRelacion() {
                 onChange={(e) => setJustification(e.target.value)}
                 placeholder="Escriba la justificación detallada aquí para la relación entre el Objetivo de Carrera y el Resultado de Aprendizaje seleccionados."
                 disabled={saving}
+                maxLength={1500}
                 className="w-full h-32 px-4 py-3 border border-[#DEE1E6] rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-[#003366]/20 focus:border-[#003366] font-open-sans text-sm disabled:bg-gray-50 disabled:cursor-not-allowed"
               />
-              <p className="text-xs text-[#565D6D] mt-1 font-open-sans">
-                Mínimo 10 caracteres ({justification.length}/10)
-              </p>
+              <div className="flex justify-end mt-1">
+                <p className="text-xs text-gray-500">
+                  {justification.length} de 1500
+                </p>
+              </div>
             </div>
           </div>
 

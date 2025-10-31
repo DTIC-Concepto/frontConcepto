@@ -25,6 +25,8 @@ export default function AsignaturaForm() {
   const [editingAsignaturaId, setEditingAsignaturaId] = useState<number | null>(null);
   const [savedCarreraIds, setSavedCarreraIds] = useState<number[]>([]);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [asignaturaNombre, setAsignaturaNombre] = useState<string>("");
+  const [asignaturaCodigo, setAsignaturaCodigo] = useState<string>("");
   const [formData, setFormData] = useState({
     codigo: "",
     nombre: "",
@@ -90,6 +92,13 @@ export default function AsignaturaForm() {
           console.log('nivelReferencial convertido:', formDataToSet.nivelReferencial);
           
           setFormData(formDataToSet);
+          setAsignaturaNombre(asignatura.nombre || "");
+          setAsignaturaCodigo(asignatura.codigo || "");
+          
+          // Guardar nombre y código en localStorage para las otras pestañas
+          localStorage.setItem('current_asignatura_nombre', asignatura.nombre || "");
+          localStorage.setItem('current_asignatura_codigo', asignatura.codigo || "");
+          
           setIsDataLoaded(true);
           // Limpiar localStorage después de cargar
           localStorage.removeItem('edit_asignatura');
@@ -181,9 +190,13 @@ export default function AsignaturaForm() {
         // Crear nueva asignatura
         const createdAsignatura = await AsignaturasService.createAsignatura(asignaturaData);
         
-        // Guardar ID de la asignatura creada para usarlo en la pestaña de RAA
+        // Guardar ID, nombre y código de la asignatura creada para usarlo en las otras pestañas
         if (createdAsignatura.id) {
           localStorage.setItem('current_asignatura_id', createdAsignatura.id.toString());
+          localStorage.setItem('current_asignatura_nombre', formData.nombre);
+          localStorage.setItem('current_asignatura_codigo', formData.codigo);
+          setAsignaturaNombre(formData.nombre);
+          setAsignaturaCodigo(formData.codigo);
         }
         
         NotificationService.success(
